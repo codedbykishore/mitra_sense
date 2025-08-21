@@ -296,7 +296,7 @@ POST /api/v1/family/educate          # Cultural content
 
 This comprehensive Google AI tech stack provides everything needed to build a culturally-aware, scalable, and cost-effective mental wellness solution that can genuinely serve millions of Indian youth while maintaining the highest standards of privacy and safety.
 
-**Key Innovation:** MITRA leverages Google's latest Gemini 2.5 models with cultural fine-tuning capabilities that didn't exist in previous AI generations, making this the perfect time to build an India-specific mental health solution.
+**Key Innovation:** We leverages Google's latest Gemini 2.5 models with cultural fine-tuning capabilities that didn't exist in previous AI generations, making this the perfect time to build an India-specific mental health solution.
 <span style="display:none">[^10][^11][^12][^13][^14][^15][^16][^17][^18][^19][^9]</span>
 
 <div style="text-align: center">⁂</div>
