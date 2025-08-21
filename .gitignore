@@ -9,3 +9,4 @@ venv/
 
 # Environment variables file
 .env
+secrets/
