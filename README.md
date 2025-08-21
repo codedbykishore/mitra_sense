@@ -1,34 +1,3 @@
 # GenAI Exchange Hackathon
 
-## resources/Timeline.csv
 
-```csv
-Phase,Task,Duration,Owner,Dependencies,Output
-Pre-Hackathon,Team Formation & Role Assignment,2 hours,All,None,"Team charter, role matrix"
-Pre-Hackathon,Technical Setup & Environment,3 hours,Tech Lead,Team formation,Development environment ready
-Pre-Hackathon,Research Cultural Datasets,2 hours,AI Specialist,None,Cultural context database
-Pre-Hackathon,Google Cloud Setup & Credits,1 hour,Tech Lead,None,Cloud environment configured
-Foundation,Problem Analysis & Solution Architecture,2 hours,Product Manager,Pre-hackathon setup,Technical architecture diagram
-Foundation,MVP Feature Prioritization,1 hour,All,Problem analysis,Feature priority matrix
-Foundation,Basic AI Chatbot Setup,2 hours,AI Specialist,Cloud setup,Working Gemini integration
-Foundation,Frontend UI Framework,2 hours,Frontend Dev,Architecture design,React app with routing
-Foundation,Cultural Context Integration,1 hour,Domain Expert,AI setup,Hindi conversation templates
-Advanced Dev,Cultural Emotion Recognition,4 hours,AI Specialist,Basic chatbot,Emotion detection pipeline
-Advanced Dev,Anonymous Peer Matching Algorithm,3 hours,Tech Lead,User profiles,Matching service API
-Advanced Dev,Voice Input/Output Integration,3 hours,Frontend Dev,UI framework,Speech functionality
-Advanced Dev,Crisis Detection System,2 hours,AI Specialist,Emotion recognition,Risk assessment model
-Advanced Dev,Family Education Portal,3 hours,UX Designer,Cultural context,Educational content UI
-Advanced Dev,Tele MANAS Integration Mock,2 hours,Tech Lead,Crisis detection,Escalation workflow
-Advanced Dev,Database Schema & User Management,2 hours,Tech Lead,Architecture,Firestore collections
-Advanced Dev,Mobile Responsive Design,3 hours,UX Designer,UI framework,Mobile-first interface
-Integration,Full System Integration Testing,2 hours,All,All dev tasks,Integrated working system
-Integration,User Journey Testing,1 hour,UX Designer,Integration,UX validation report
-Integration,Performance Optimization,1 hour,Tech Lead,Integration,Optimized deployment
-Integration,Cultural Sensitivity Review,1 hour,Domain Expert,Integration,Cultural compliance check
-Integration,Bug Fixes & Stability,1 hour,All,Testing,Stable demo version
-Presentation,Demo Script Creation,1 hour,Product Manager,Stable system,3-minute demo script
-Presentation,Pitch Deck Finalization,1 hour,Product Manager,Demo script,Presentation slides
-Presentation,Technical Demo Rehearsal,2 hours,All,Demo script,Rehearsed presentation
-Presentation,Backup Demo Preparation,1 hour,Tech Lead,Rehearsal,Offline demo version
-Presentation,Final Presentation Delivery,1 hour,All,All prep,Hackathon submission
-```
