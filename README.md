@@ -1,5 +1,14 @@
 # GenAI Exchange Hackathon
 
+## 🎗️ REMEMBER
+
+Always remember to export your GOOGLE_APPLICATION_CREDENTIAL to your os for local-setup
+And for cloud add Service Account
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIAL=path/to/credentials.json
+```
+
 ## 🧠 Core Google AI Services
 
 ### **Primary AI Engine: Gemini 2.5 Flash**[^1][^2]
@@ -7,43 +16,40 @@
 - **Model ID:** `gemini-2.5-flash`
 - **Purpose:** Main conversational AI for cultural mental health support
 - **Capabilities:**
-    - Multimodal input (text, images, video, audio)
-    - 1M token context window for long conversations
-    - Native thinking capabilities for better reasoning
-    - Cultural context understanding
+  - Multimodal input (text, images, video, audio)
+  - 1M token context window for long conversations
+  - Native thinking capabilities for better reasoning
+  - Cultural context understanding
 - **Pricing:**
-    - Input: \$0.30 per 1M tokens
-    - Output: \$2.50 per 1M tokens
-    - Audio Input: \$1.00 per 1M tokens
+  - Input: \$0.30 per 1M tokens
+  - Output: \$2.50 per 1M tokens
+  - Audio Input: \$1.00 per 1M tokens
 - **Knowledge Cutoff:** January 2025[^1]
-
 
 ### **Secondary AI Engine: Gemini 2.5 Flash-Lite**[^3][^4]
 
 - **Model ID:** `gemini-2.5-flash-lite`
 - **Purpose:** Low-latency responses for crisis detection and quick interactions
 - **Capabilities:**
-    - Fastest response time in Gemini family
-    - Optimized for classification and translation tasks
-    - 1M token context window
+  - Fastest response time in Gemini family
+  - Optimized for classification and translation tasks
+  - 1M token context window
 - **Pricing:**
-    - Input: \$0.10 per 1M tokens (**lowest cost option**)
-    - Output: \$0.40 per 1M tokens
-    - 75% cost reduction for off-peak usage[^5]
-
+  - Input: \$0.10 per 1M tokens (**lowest cost option**)
+  - Output: \$0.40 per 1M tokens
+  - 75% cost reduction for off-peak usage[^5]
 
 ### **Crisis Escalation: Gemini 2.5 Pro**[^2]
 
 - **Model ID:** `gemini-2.5-pro`
 - **Purpose:** Advanced reasoning for complex mental health crisis situations
 - **Capabilities:**
-    - Most advanced reasoning model
-    - Complex problem-solving for nuanced situations
-    - Enhanced safety and reliability
+  - Most advanced reasoning model
+  - Complex problem-solving for nuanced situations
+  - Enhanced safety and reliability
 - **Pricing:**
-    - Input: \$1.25 per 1M tokens (≤200K), \$2.50 per 1M tokens (>200K)
-    - Output: \$10 per 1M tokens
-
+  - Input: \$1.25 per 1M tokens (≤200K), \$2.50 per 1M tokens (>200K)
+  - Output: \$10 per 1M tokens
 
 ## 🗣️ Voice \& Language Processing
 
@@ -54,26 +60,23 @@
 - **Features:** Real-time streaming, speaker diarization, profanity filtering
 - **Pricing:** \$0.016 per 15-second increment
 
-
 ### **Google Text-to-Speech API**[^1]
 
 - **Purpose:** Generate culturally-appropriate voice responses
 - **Features:**
-    - 93+ Indian languages and dialects support
-    - Neural voice synthesis for natural conversations
-    - SSML support for emotional tone control
+  - 93+ Indian languages and dialects support
+  - Neural voice synthesis for natural conversations
+  - SSML support for emotional tone control
 - **Pricing:** \$4.00 per 1M characters (Neural voices)
-
 
 ### **Google Cloud Translation API**[^1]
 
 - **Purpose:** Real-time translation across Indian regional languages
 - **Features:**
-    - Support for Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, etc.
-    - Cultural context preservation
-    - Batch translation for educational content
+  - Support for Hindi, Tamil, Telugu, Bengali, Marathi, Gujarati, etc.
+  - Cultural context preservation
+  - Batch translation for educational content
 - **Pricing:** \$20 per 1M characters
-
 
 ## 🔍 Advanced AI Features
 
@@ -81,43 +84,39 @@
 
 - **Purpose:** Provide accurate mental health information and local resources
 - **Features:**
-    - 1,500 free grounded prompts per day with Flash models
-    - Real-time web information integration
-    - Fact-checking for mental health content
+  - 1,500 free grounded prompts per day with Flash models
+  - Real-time web information integration
+  - Fact-checking for mental health content
 - **Pricing:** \$35 per 1,000 grounded prompts (after free limit)
-
 
 ### **Vertex AI Evaluation Service**[^6]
 
 - **Purpose:** Monitor and improve AI response quality for mental health appropriateness
 - **Features:**
-    - Safety metric evaluation
-    - Cultural appropriateness scoring
-    - Response quality assessment
+  - Safety metric evaluation
+  - Cultural appropriateness scoring
+  - Response quality assessment
 - **Pricing:** \$0.00003 per 1K characters input, \$0.00009 per 1K characters output
-
 
 ## ☁️ Google Cloud Infrastructure
 
 ### **Compute \& Deployment**
 
 - **Cloud Run**: Serverless containerized deployment[^7]
-    - Auto-scaling based on mental health app usage patterns
-    - Pay-per-request pricing: \$0.0000048 per 100ms
-    - Supports concurrent request handling for peer matching
-
+  - Auto-scaling based on mental health app usage patterns
+  - Pay-per-request pricing: \$0.0000048 per 100ms
+  - Supports concurrent request handling for peer matching
 
 ### **Database \& Storage**
 
 - **Firestore**: NoSQL real-time database[^1]
-    - Anonymous user profile storage
-    - Conversation history (encrypted)
-    - Peer matching preferences
-    - Pricing: \$0.06 per 100K document reads, \$0.18 per 100K writes
+  - Anonymous user profile storage
+  - Conversation history (encrypted)
+  - Peer matching preferences
+  - Pricing: \$0.06 per 100K document reads, \$0.18 per 100K writes
 - **Cloud Storage**: Voice recordings and cultural datasets
-    - Standard storage: \$0.020 per GB per month
-    - Nearline storage for archival: \$0.010 per GB per month
-
+  - Standard storage: \$0.020 per GB per month
+  - Nearline storage for archival: \$0.010 per GB per month
 
 ### **Security \& Privacy**
 
@@ -125,37 +124,33 @@
 - **Cloud KMS**: Encryption key management for sensitive mental health data
 - **VPC**: Private network for secure peer connections
 
-
 ## 🎨 Frontend Technology Stack
 
 ### **React.js 18 with Next.js 14**
 
 - **Purpose:** Progressive Web App for mobile-first mental wellness experience
 - **Features:**
-    - Server-side rendering for faster load times
-    - Progressive Web App capabilities
-    - Real-time chat interface
-    - Voice input integration
-
+  - Server-side rendering for faster load times
+  - Progressive Web App capabilities
+  - Real-time chat interface
+  - Voice input integration
 
 ### **UI Framework: Tailwind CSS**
 
 - **Purpose:** Culturally-sensitive, responsive design system
 - **Features:**
-    - Indian color palette (saffron, green, blue)
-    - RTL language support
-    - Dark mode for night-time mental health support
-    - Accessibility compliance (WCAG 2.1)
-
+  - Indian color palette (saffron, green, blue)
+  - RTL language support
+  - Dark mode for night-time mental health support
+  - Accessibility compliance (WCAG 2.1)
 
 ### **Real-time Communication: Socket.IO**
 
 - **Purpose:** Anonymous peer circle real-time messaging
 - **Features:**
-    - Voice room coordination
-    - Typing indicators
-    - Connection status management
-
+  - Voice room coordination
+  - Typing indicators
+  - Connection status management
 
 ## 🔧 Backend Technology Stack
 
@@ -163,11 +158,10 @@
 
 - **Purpose:** High-performance API server for mental health services
 - **Features:**
-    - Async/await support for concurrent user handling
-    - Automatic OpenAPI documentation
-    - Built-in data validation
-    - Integration with Google AI APIs
-
+  - Async/await support for concurrent user handling
+  - Automatic OpenAPI documentation
+  - Built-in data validation
+  - Integration with Google AI APIs
 
 ### **Core Libraries:**
 
@@ -181,7 +175,6 @@ socketio==5.10.0                 # Real-time communication
 pydantic==2.5.0                  # Data validation
 ```
 
-
 ## 📱 Mobile Integration
 
 ### **Firebase SDK**
@@ -191,13 +184,11 @@ pydantic==2.5.0                  # Data validation
 - **Analytics:** Privacy-compliant usage tracking
 - **Performance Monitoring:** App stability for mental health reliability
 
-
 ### **Progressive Web App Features**
 
 - **Service Worker:** Offline mental health resources
 - **Push Notifications:** Anonymous peer support alerts
 - **Add to Home Screen:** Native app-like experience
-
 
 ## 💰 Cost Optimization Strategy
 
@@ -206,14 +197,13 @@ pydantic==2.5.0                  # Data validation
 ```
 Estimated Usage for Demo:
 - Gemini 2.5 Flash: 100K tokens input × $0.30 = $0.03
-- Voice processing: 1 hour × $3.84 = $3.84  
+- Voice processing: 1 hour × $3.84 = $3.84
 - Translation: 50K characters × $0.02 = $1.00
 - Cloud Run: 1000 requests × $0.0000048 = $0.005
 - Firestore: 10K operations × $0.0006 = $0.006
 
 Total Demo Cost: ~$5 for 36-hour hackathon
 ```
-
 
 ### **Production Scaling (Monthly)**
 
@@ -227,14 +217,12 @@ For 1,000 active users:
 Total Monthly Cost: ~$774 ($0.77 per user)
 ```
 
-
 ### **Cost Optimization Features**[^5]
 
 - **Batch Processing:** 50% discount on non-real-time operations
 - **Off-Peak Pricing:** 75% savings during low-usage hours
 - **Caching Layer:** Redis for frequently accessed mental health resources
 - **Committed Use Discounts:** Up to 57% savings with 1-year commitment
-
 
 ## 🚀 Implementation Architecture
 
@@ -248,7 +236,6 @@ GET  /api/v1/peer/match              # Anonymous matching
 POST /api/v1/voice/process           # Speech-to-Text
 POST /api/v1/family/educate          # Cultural content
 ```
-
 
 ### **Data Flow Architecture**
 
@@ -267,14 +254,12 @@ POST /api/v1/family/educate          # Cultural content
 - **Audit Logs:** Track all AI interactions for safety monitoring
 - **Data Loss Prevention:** Scan for PII in mental health conversations
 
-
 ### **Mental Health Compliance**
 
 - **HIPAA Compliance:** Google Cloud healthcare APIs
 - **Data Residency:** Keep Indian user data within Indian data centers
 - **Encryption:** End-to-end encryption for all mental health conversations
 - **Anonymous Processing:** No personally identifiable information storage
-
 
 ## 🎯 Unique Google AI Advantages for Mental Health
 
@@ -338,4 +323,3 @@ This comprehensive Google AI tech stack provides everything needed to build a cu
 [^18]: https://ai.google.dev/gemini-api/docs/models
 
 [^19]: https://health.google/mental-health/
-
