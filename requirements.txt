@@ -7,3 +7,4 @@ google-cloud-translate
 pytest
 pydantic-settings
 pytest-asyncio
+google-cloud-aiplatform
