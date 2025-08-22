@@ -28,7 +28,7 @@ def test_conversation_model():
         updated_at=datetime.now(timezone.utc),
     )
     assert conv.messages[0]["text"] == "hello"
-    dict_rep = conv.dict()
+    dict_rep = conv.model_dump()
     assert "messages" in dict_rep
 
 
