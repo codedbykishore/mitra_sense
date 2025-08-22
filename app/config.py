@@ -2,6 +2,9 @@ import os
 import json
 from pathlib import Path
 from pydantic_settings import BaseSettings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -26,10 +29,13 @@ class Settings(BaseSettings):
     def _load_google_config(self):
         cred_path = Path(self.GOOGLE_CREDENTIALS_FILE)
         if cred_path.exists():
-            with open(cred_path, "r") as f:
-                creds = json.load(f)
-            object.__setattr__(self, "GOOGLE_PROJECT_ID", creds.get("project_id"))
-            object.__setattr__(self, "GOOGLE_CLIENT_EMAIL", creds.get("client_email"))
+            try:
+                with open(cred_path, "r") as f:
+                    creds = json.load(f)
+                object.__setattr__(self, "GOOGLE_PROJECT_ID", creds.get("project_id"))
+                object.__setattr__(self, "GOOGLE_CLIENT_EMAIL", creds.get("client_email"))
+            except (IOError, json.JSONDecodeError) as e:
+                logger.error(f"Failed to load Google credentials from {cred_path}: {e}")
 
 
 settings = Settings()
