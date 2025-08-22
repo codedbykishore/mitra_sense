@@ -1,5 +1,14 @@
 # GenAI Exchange Hackathon
 
+## REMEMBER
+Always remember to export your GOOGLE_APPLICATION_CREDENTIAL to your os for local-setup
+And for cloud add Service Account
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIAL=path/to/credentials.json
+```
+
+
 ## 🧠 Core Google AI Services
 
 ### **Primary AI Engine: Gemini 2.5 Flash**[^1][^2]
