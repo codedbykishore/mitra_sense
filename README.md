@@ -9,6 +9,26 @@ And for cloud add Service Account
 export GOOGLE_APPLICATION_CREDENTIAL=path/to/credentials.json
 ```
 
+## 👟 Running Tests
+
+- Run all tests (unit + integration):
+
+```bash
+python -m pytest -qvs
+```
+
+- Run only integration tests:
+
+```bash
+python -m pytest -qvs -m integration
+```
+
+- Run only unit tests:
+
+```bash
+python -m pytest -qvs -m "not integration"
+```
+
 ## 🧠 Core Google AI Services
 
 ### **Primary AI Engine: Gemini 2.5 Flash**[^1][^2]
