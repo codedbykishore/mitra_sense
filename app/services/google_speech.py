@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class SpeechService:
     def __init__(self):
-        self.speech_client = speech.SpeechClient()
+        self.speech_client = speech.SpeechClient() # Automatically fetches the $GOOGLE_APPLICATON_CREDENTIAL
         self.tts_client = texttospeech.TextToSpeechClient()
         self.translate_client = translate.Client()
         self.supported_languages = settings.SUPPORTED_LANGUAGES  # From config.py

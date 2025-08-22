@@ -1,9 +1,12 @@
 import os
 import json
+from pathlib import Path
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # Declare fields so Pydantic knows them
+    GOOGLE_CREDENTIALS_FILE: str = str(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
     GOOGLE_PROJECT_ID: str | None = None
     GOOGLE_CLIENT_EMAIL: str | None = None
 
@@ -21,9 +24,10 @@ class Settings(BaseSettings):
         self._load_google_config()
 
     def _load_google_config(self):
-        creds_json = os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-        if creds_json:
-            creds = json.loads(creds_json)
+        cred_path = Path(self.GOOGLE_CREDENTIALS_FILE)
+        if cred_path.exists():
+            with open(cred_path, "r") as f:
+                creds = json.load(f)
             object.__setattr__(self, "GOOGLE_PROJECT_ID", creds.get("project_id"))
             object.__setattr__(self, "GOOGLE_CLIENT_EMAIL", creds.get("client_email"))
 
