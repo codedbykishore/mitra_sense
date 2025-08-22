@@ -9,3 +9,5 @@ venv/
 
 # Environment variables file
 .env
+secrets/
+.DS_Store

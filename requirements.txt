@@ -1,3 +1,9 @@
 fastapi
 uvicorn
 python-dotenv
+google-cloud-speech 
+google-cloud-texttospeech 
+google-cloud-translate
+pytest
+pydantic-settings
+pytest-asyncio
