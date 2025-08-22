@@ -13,20 +13,23 @@ logger = logging.getLogger(__name__)
 
 class SpeechService:
     def __init__(self):
-        self.speech_client = speech.SpeechClient() # Automatically fetches the $GOOGLE_APPLICATON_CREDENTIAL
-        self.tts_client = texttospeech.TextToSpeechClient()
-        self.translate_client = translate.Client()
-        self.supported_languages = settings.SUPPORTED_LANGUAGES  # From config.py
-    
-    # NEW: Language Detection (Missed Function)
+        try:
+            self.speech_client = speech.SpeechClient() #Automatically fetches the $GOOGLE_APPLICATON_CREDENTIAL
+            self.tts_client = texttospeech.TextToSpeechClient() #Automatically fetches the $GOOGLE_APPLICATON_CREDENTIAL
+            self.translate_client = translate.Client()
+            self.supported_languages = settings.SUPPORTED_LANGUAGES
+            logger.info("Google Speech services initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Google Speech services: {e}")
+            raise    # NEW: Language Detection (Missed Function)
 
     async def detect_language(self, audio_data: bytes, sample_rate: int = 16000) -> str:
         """Automatically detect spoken language from audio."""
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=sample_rate,
-            language_code="en-US",  # Primary language
-            alternative_language_codes=["hi-IN"],  # Fallback/alternate
+            language_code=self.supported_languages[0],  # Primary language
+            alternative_language_codes=self.supported_languages[1:],  # Fallback/alternate
             enable_automatic_punctuation=True,
         )
         audio = speech.RecognitionAudio(content=audio_data)
@@ -72,42 +75,29 @@ class SpeechService:
                 transcript = " ".join([result.alternatives[0].transcript for result in response.results if result.alternatives])
                 confidence = response.results[0].alternatives[0].confidence 
                 return transcript, confidence
+            else:
+                return "", 0.0
         except GoogleAPIError as e:
             logger.error(f"STT failed: {e}")
             raise HTTPException(status_code=500, detail="Speech recognition error")
     
-    # # 2. Text Translation to English - Your Function (Made Optional)
-    # async def translate_to_english(self, text: str, source_language: Optional[str] = None) -> str:
-    #     """Translate text to English for Gemini input (optional if Gemini handles native lang)."""
-    #     if source_language and source_language == "en":
-    #         return text  # Skip if already English
-    #     
-    #     try:
-    #         result = await asyncio.to_thread(
-    #             self.translate_client.translate,
-    #             text,
-    #             target_language="en",
-    #             source_language=source_language
-    #         )
-    #         return result["translatedText"]
-    #     except GoogleAPIError as e:
-    #         logger.error(f"Translation failed: {e}")
-    #         return text  # Fallback to original
-    
-    # 3. Synthesize Response - Your Function with Cultural Enhancements
+    # 2. Synthesize Response - Your Function with Cultural Enhancements
     async def synthesize_response(self, text: str, language: str, cultural_tone: str = "empathetic_calm") -> bytes:
         """Convert Gemini response to culturally-appropriate voice audio."""
         # Map cultural tone to voice parameters (e.g., slower for calm, regional accents)
         voice_map = {
-            "hi": {"name": "hi-IN-Neural2-A", "speaking_rate": 0.9 if cultural_tone == "calm" else 1.0},  # Hindi female neural voice
-            "en": {"name": "en-IN-Neural2-B", "speaking_rate": 0.95},  # Indian English male
-            # Add more for other languages
+            "en-US": {"name": "en-US-Neural2-C", "language_code": "en-US", "speaking_rate": 0.9},
+            "en-IN": {"name": "en-IN-Neural2-B", "language_code": "en-IN", "speaking_rate": 0.9},
+            "hi-IN": {"name": "hi-IN-Neural2-A", "language_code": "hi-IN", "speaking_rate": 0.9},
+            "default": {"name": "en-US-Neural2-C", "language_code": "en-US", "speaking_rate": 0.9},
         }
-        voice_config = voice_map.get(language, {"name": "en-IN-Neural2-A", "speaking_rate": 1.0})
+        
+        voice_key = language.upper().replace("_", "-")  # normalize language code
+        voice_config = voice_map.get(voice_key, voice_map["default"])
         
         synthesis_input = texttospeech.SynthesisInput(text=text)
         voice = texttospeech.VoiceSelectionParams(
-            language_code=language,
+            language_code=voice_config["language_code"],
             name=voice_config["name"]
         )
         audio_config = texttospeech.AudioConfig(
@@ -123,38 +113,54 @@ class SpeechService:
             logger.error(f"TTS failed: {e}")
             raise HTTPException(status_code=500, detail="Speech synthesis error")
     
-    # 4. Detect Emotional Tone - Your Function
+    # 3. Detect Emotional Tone - Your Function 
     async def detect_emotional_tone(self, audio_data: bytes, language: str) -> Dict[str, float]:
-        """Analyze emotional state from voice patterns (basic prosody + Gemini integration)."""
-        # Step 1: Basic prosody analysis with Speech API
+        """Analyze emotional state from voice patterns."""
         transcript, _ = await self.transcribe_audio(audio_data, language)
         
-        # Step 2: Use Gemini for advanced emotion detection (integrate with gemini_ai.py)
-        gemini_service = GeminiService()
-        emotion_prompt = f"Analyze emotional tone from this transcript: '{transcript}'. Detect anxiety, sadness, anger, calmness. Return scores 0-1."
-        gemini_response = await gemini_service.process_cultural_conversation(emotion_prompt, {"analysis_mode": "emotion"})
-        
-        # Parse response (example; implement proper parsing)
-        emotions = {
-            "anxiety": 0.0,
-            "sadness": 0.0,
-            "calmness": 0.0,
-            # Add more based on Gemini output
-        }
-        # Update emotions from gemini_response
+        try:
+            # Try Gemini integration
+            gemini_service = GeminiService()
+            emotion_prompt = f"Analyze emotional tone from this transcript: '{transcript}'. Return JSON with anxiety, sadness, anger, calmness scores 0-1."
+            gemini_response = await gemini_service.process_cultural_conversation(emotion_prompt, {"analysis_mode": "emotion"})
+            
+            # Parse Gemini response (implement proper JSON parsing)
+            emotions = gemini_response.get("emotions", {
+                "anxiety": 0.0,
+                "sadness": 0.0,
+                "calmness": 0.0,
+                "anger": 0.0
+            })
+            
+        except Exception as e:
+            logger.warning(f"Gemini emotion detection failed, using fallback: {e}")
+            # Fallback: basic keyword analysis
+            emotions = self._basic_emotion_detection(transcript)
         
         return emotions
-    
-    # NEW: Full Pipeline Wrapper (Recommended Addition)
+
+    def _basic_emotion_detection(self, transcript: str) -> Dict[str, float]:
+        """Fallback emotion detection using keywords."""
+        anxiety_words = ["worried", "scared", "nervous", "anxious", "ghabrahat"]
+        sadness_words = ["sad", "depressed", "down", "upset", "dukhi"]
+        
+        text_lower = transcript.lower()
+        return {
+            "anxiety": min(1.0, sum(0.3 for word in anxiety_words if word in text_lower)),
+            "sadness": min(1.0, sum(0.3 for word in sadness_words if word in text_lower)),
+            "calmness": 0.5,  # Default neutral
+            "anger": 0.0
+        }
+
+    #Full Pipeline Wrapper
     async def process_voice_pipeline(self, audio_data: bytes) -> Dict:
         """End-to-end: Detect lang → STT → Translate → Gemini → TTS → Emotion analysis."""
         language = await self.detect_language(audio_data)
         transcript, _ = await self.transcribe_audio(audio_data, language)
-        english_text = await self.translate_to_english(transcript, language)
         
         # Feed to Gemini (from gemini_ai.py)
         gemini_service = GeminiService()
-        gemini_response = await gemini_service.process_cultural_conversation(english_text, {"language": language})
+        gemini_response = await gemini_service.process_cultural_conversation(transcript, {"language": language})
         
         # Synthesize audio
         audio_output = await self.synthesize_response(gemini_response["response"], language)
@@ -164,12 +170,12 @@ class SpeechService:
         
         return {
             "transcript": transcript,
-            "english_text": english_text,
             "gemini_response": gemini_response,
             "audio_output": audio_output,  # Bytes for response
             "emotions": emotions
         }
     
+
     # NEW: Audio Validation (Recommended Addition)
     def validate_audio(self, audio_data: bytes) -> bool:
         """Validate audio input before processing."""

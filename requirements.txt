@@ -8,3 +8,4 @@ google-cloud-firestore
 pytest
 pydantic-settings
 pytest-asyncio
+google-cloud-aiplatform
