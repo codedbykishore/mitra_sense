@@ -1,7 +1,7 @@
 from google.cloud import firestore
 from app.models.db_models import AnonymousUser, Conversation, PeerCircle, CrisisAlert
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 class FirestoreService:
@@ -13,7 +13,7 @@ class FirestoreService:
     # ---------------------------
     async def create_anonymous_user(self, user: AnonymousUser) -> str:
         doc_ref = self.db.collection("anonymous_users").document(user.user_id)
-        doc_ref.set(user.dict())
+        doc_ref.set(user.model_dump())
         return user.user_id
 
     async def get_anonymous_user(self, user_id: str) -> Optional[AnonymousUser]:
@@ -35,7 +35,7 @@ class FirestoreService:
         doc_ref = self.db.collection("conversations").document(
             conversation.conversation_id
         )
-        doc_ref.set(conversation.dict())
+        doc_ref.set(conversation.model_dump())
 
     async def get_conversation(self, conversation_id: str) -> Optional[Conversation]:
         doc = self.db.collection("conversations").document(conversation_id).get()
@@ -49,7 +49,7 @@ class FirestoreService:
         doc_ref.update(
             {
                 "messages": firestore.ArrayUnion([message]),
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(UTC),
             }
         )
 
