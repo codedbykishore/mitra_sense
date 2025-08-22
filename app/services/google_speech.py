@@ -6,6 +6,7 @@ from google.cloud import speech, texttospeech, translate_v2 as translate
 from google.api_core.exceptions import GoogleAPIError
 from app.config import settings  # Import project settings
 from app.services.gemini_ai import GeminiService  # For emotion integration if needed
+from fastapi import HTTPException
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -18,24 +19,34 @@ class SpeechService:
         self.supported_languages = settings.SUPPORTED_LANGUAGES  # From config.py
     
     # NEW: Language Detection (Missed Function)
+
     async def detect_language(self, audio_data: bytes, sample_rate: int = 16000) -> str:
         """Automatically detect spoken language from audio."""
         config = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=sample_rate,
-            language_code="mul"  # Multilingual detection
+            language_code="en-US",  # Primary language
+            alternative_language_codes=["hi-IN"],  # Fallback/alternate
+            enable_automatic_punctuation=True,
         )
         audio = speech.RecognitionAudio(content=audio_data)
-        
+
         try:
-            response = await asyncio.to_thread(self.speech_client.recognize, config=config, audio=audio)
+            response = await asyncio.to_thread(
+                self.speech_client.recognize, config=config, audio=audio
+            )
             if response.results:
-                return response.results.language_code.split("-")  # e.g., "hi" from "hi-IN"
-            return settings.DEFAULT_LANGUAGE  # Fallback to English
+                transcript = response.results[0].alternatives[0].transcript
+                detected_language = (
+                    response.results[0].language_code
+                    if hasattr(response.results[0], "language_code")
+                    else "en"
+                )
+                return detected_language
+            return settings.DEFAULT_LANGUAGE  # fallback
         except GoogleAPIError as e:
             logger.error(f"Language detection failed: {e}")
             raise HTTPException(status_code=500, detail="Language detection error")
-    
     # 1. Speech-to-Text (Multilingual) - Your Core Function
     async def transcribe_audio(self, audio_data: bytes, language: Optional[str] = None, sample_rate: int = 16000) -> Tuple[str, float]:
         """Convert multilingual voice to text with confidence score."""
@@ -49,13 +60,18 @@ class SpeechService:
             enable_automatic_punctuation=True,
             model="latest_long"  # For longer conversations
         )
+
         audio = speech.RecognitionAudio(content=audio_data)
         
         try:
             response = await asyncio.to_thread(self.speech_client.recognize, config=config, audio=audio)
-            transcript = " ".join([result.alternatives[0].transcript for result in response.results])
-            confidence = response.results[0].alternatives[0].confidence
-            return transcript, confidence
+            transcript = ""
+            confidence = 0.0
+
+            if response.results and response.results[0].alternatives:
+                transcript = " ".join([result.alternatives[0].transcript for result in response.results if result.alternatives])
+                confidence = response.results[0].alternatives[0].confidence 
+                return transcript, confidence
         except GoogleAPIError as e:
             logger.error(f"STT failed: {e}")
             raise HTTPException(status_code=500, detail="Speech recognition error")
