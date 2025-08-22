@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         "fr-FR",  # French
         "hi-IN",  # Hindi (India)
     ]
+    DEFAULT_LANGUAGE: str = "en-US"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
