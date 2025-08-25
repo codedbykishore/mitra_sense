@@ -7,3 +7,6 @@
 
 ## Order Table
 - [Perplexity table](https://www.perplexity.ai/search/you-are-a-world-class-hackatho-CxZXzN0aR0.4z37rluvW4w#9)
+
+## Problem Statement
+- [PS](https://vision.hack2skill.com/event/genaiexchangehackathon/?utm_source=hack2skill&utm_medium=homepage)
