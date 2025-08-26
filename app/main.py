@@ -22,6 +22,13 @@ app = FastAPI(
 # app.include_router(analytics.router, prefix="/api/v1/analytics")
 
 
+from app.routes.input import router as input_router
+from app.routes.voice import router as voice_router
+
+app.include_router(input_router, prefix="/api/v1/input")
+app.include_router(voice_router, prefix="/api/v1")
+
+
 @app.get("/")
 def root():
     return {"message": "root end point"}
