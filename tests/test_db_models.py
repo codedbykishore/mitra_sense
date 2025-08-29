@@ -1,19 +1,17 @@
+# tests/test_db_models.py
 from datetime import datetime, timezone
-import pytest
-from app.models.db_models import AnonymousUser, Conversation, PeerCircle, CrisisAlert
+from app.models.db_models import User, Conversation, PeerCircle, CrisisAlert
 
 
-def test_anonymous_user_model():
-    user = AnonymousUser(
+def test_user_model():
+    user = User(
         user_id="user123",
-        cultural_background="indian_general",
-        preferred_language="hi",
-        age_group="18-25",
+        email="test@example.com",
+        hashed_password="hashedpassword",
         created_at=datetime.now(timezone.utc),
-        privacy_settings={"share_data": False},
     )
     assert user.user_id == "user123"
-    assert "share_data" in user.privacy_settings
+    assert user.email == "test@example.com"
     json_data = user.model_dump_json()
     assert isinstance(json_data, str)
 

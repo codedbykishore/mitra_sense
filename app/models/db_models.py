@@ -1,86 +1,50 @@
-from datetime import datetime, UTC
-from typing import Optional, List, Dict
-from pydantic import BaseModel, Field, ConfigDict, field_serializer
+
+from datetime import datetime, timezone
+from typing import List, Dict, Optional
+from pydantic import BaseModel, Field
 
 
-class AnonymousUser(BaseModel):
-    user_id: str = Field(..., description="Anonymous unique user identifier")
-    cultural_background: str = Field(
-        "indian_general", description="User's cultural grouping"
-    )
-    preferred_language: str = Field("en", description="Preferred language code")
-    age_group: Optional[str] = Field(None, description="User age group")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_active: Optional[datetime] = Field(default_factory=lambda: datetime.now(UTC))
-    privacy_settings: Optional[Dict[str, bool]] = Field(default_factory=dict)
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_serializer("created_at", "last_active")
-    def serialize_datetimes(self, dt: datetime) -> str:
-        return dt.isoformat()
+class User(BaseModel):
+    user_id: str
+    email: str
+    hashed_password: Optional[str] = None
+    google_id: Optional[str] = None
+    cultural_background: str = Field(default="indian_general")
+    preferred_language: str = Field(default="en-US")
+    age_group: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_active: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    privacy_settings: Dict[str, bool] = Field(default_factory=lambda: {"share_data": False})
 
 
 class Conversation(BaseModel):
-    conversation_id: str = Field(..., description="Unique conversation ID")
-    user_id: str = Field(..., description="Associated anonymous user ID")
-    messages: List[Dict] = Field(
-        default_factory=list, description="Sequence of message dicts"
-    )
-    emotion_analysis: Optional[Dict[str, float]] = Field(default_factory=dict)
-    crisis_score: Optional[float] = Field(0.0)
-    cultural_context: Optional[Dict[str, str]] = Field(default_factory=dict)
-    rag_sources: Optional[List[str]] = Field(
-        default_factory=list, description="RAG knowledge sources referenced"
-    )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_serializer("created_at", "updated_at")
-    def serialize_datetimes(self, dt: datetime) -> str:
-        return dt.isoformat()
+    conversation_id: str
+    user_id: str
+    messages: List[Dict] = Field(default_factory=list)
+    emotion_analysis: Dict[str, float] = Field(default_factory=dict)
+    crisis_score: float = 0.0
+    cultural_context: Dict[str, str] = Field(default_factory=dict)
+    rag_sources: List[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class PeerCircle(BaseModel):
-    circle_id: str = Field(..., description="Peer circle unique ID")
-    participants: List[str] = Field(
-        default_factory=list, description="List of anonymous user IDs"
-    )
-    cultural_match_score: Optional[float] = Field(0.0)
-    topic_category: Optional[str] = Field(
-        "general", description="Discussion topic category"
-    )
-    active_status: bool = Field(True, description="Whether the circle is active")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_activity: Optional[datetime] = Field(default_factory=lambda: datetime.now(UTC))
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_serializer("created_at", "last_activity")
-    def serialize_datetimes(self, dt: datetime) -> str:
-        return dt.isoformat()
-
+    circle_id: str
+    participants: List[str] = Field(default_factory=list)
+    cultural_match_score: float = 0.0
+    topic_category: str = "general"
+    active_status: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_activity: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class CrisisAlert(BaseModel):
-    alert_id: str = Field(..., description="Unique alert identifier")
-    user_id: str = Field(..., description="Anonymous user ID involved")
-    crisis_score: float = Field(..., description="Calculated severity score")
-    detected_patterns: List[str] = Field(
-        default_factory=list, description="Warning signs detected"
-    )
-    escalation_status: str = Field(
-        "pending", description="Escalation status: pending, notified, resolved"
-    )
-    tele_manas_notified: bool = Field(
-        False, description="Whether Tele MANAS was notified"
-    )
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    alert_id: str
+    user_id: str
+    crisis_score: float
+    detected_patterns: List[str] = Field(default_factory=list)
+    escalation_status: str = "pending"  # pending/resolved/escalated
+    tele_manas_notified: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     resolved_at: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_serializer("created_at", "resolved_at")
-    def serialize_datetimes(self, dt: Optional[datetime]) -> Optional[str]:
-        return dt.isoformat() if dt else None

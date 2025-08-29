@@ -1,3 +1,4 @@
+
 from enum import Enum
 from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
@@ -12,93 +13,49 @@ class LanguageCode(str, Enum):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(
-        ...,
-        min_length=1,
-        max_length=1024,
-        description="User text or voice converted to text",
-    )
-    language: LanguageCode = Field(
-        LanguageCode.ENGLISH_US, description="Language code of the message"
-    )
-    cultural_context: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="Optional cultural metadata"
-    )
-    voice_data: Optional[str] = Field(
-        None, description="Optional base64 encoded voice input"
-    )
+    message: str = Field(..., min_length=1, max_length=1024)
+    language: LanguageCode = Field(default=LanguageCode.ENGLISH_US)
+    cultural_context: Dict[str, str] = Field(default_factory=dict)
+    voice_data: Optional[str] = None  # base64 encoded
 
 
 class ChatResponse(BaseModel):
-    response: str = Field(..., description="AI-generated response text")
-    emotion_detected: Optional[Dict[str, float]] = Field(
-        default_factory=dict, description="Emotion scores"
-    )
-    crisis_score: Optional[float] = Field(0.0, description="Crisis risk score")
-    rag_sources: Optional[List[str]] = Field(
-        default_factory=list, description="Sources used by RAG"
-    )
-    suggested_actions: Optional[List[str]] = Field(
-        default_factory=list, description="Suggested next steps"
-    )
-    cultural_adaptations: Optional[Dict[str, str]] = Field(
-        default_factory=dict, description="Cultural content adjustments"
-    )
+    response: str
+    emotion_detected: Dict[str, float] = Field(default_factory=dict)
+    crisis_score: float = 0.0
+    rag_sources: List[str] = Field(default_factory=list)
+    suggested_actions: List[str] = Field(default_factory=list)
+    cultural_adaptations: Dict[str, str] = Field(default_factory=dict)
 
 
 class PeerMatchRequest(BaseModel):
-    interests: Optional[List[str]] = Field(
-        default_factory=list, description="User interests"
-    )
-    cultural_background: Optional[str] = Field(
-        "indian_general", description="User cultural group"
-    )
-    support_type: Optional[str] = Field(
-        "general", description="Type of mental health support requested"
-    )
+    interests: List[str] = Field(default_factory=list)
+    cultural_background: str = Field(default="indian_general")
+    support_type: str = Field(default="general")
 
 
 class PeerMatchResponse(BaseModel):
-    matched_user_ids: List[str] = Field(
-        ..., description="List of anonymous peer user IDs matched"
-    )
+    user_ids: List[str]  # updated from 'anonymous peer user IDs'
 
 
 class FamilyEducationRequest(BaseModel):
-    family_type: Optional[str] = Field(
-        "nuclear", description="Type of family structure"
-    )
-    cultural_region: Optional[str] = Field(
-        "north_indian", description="Cultural/regional background"
-    )
-    education_level: Optional[str] = Field(
-        "college_educated", description="Education level"
-    )
-    specific_concerns: Optional[List[str]] = Field(
-        default_factory=list, description="Specific mental health concerns"
-    )
+    family_type: str = Field(default="nuclear")
+    cultural_region: str = Field(default="north_indian")
+    education_level: str = Field(default="college_educated")
+    specific_concerns: List[str] = Field(default_factory=list)
 
 
 class FamilyEducationResponse(BaseModel):
-    educational_content: str = Field(
-        ..., description="Generated family education content"
-    )
-    recommended_resources: Optional[List[str]] = Field(
-        default_factory=list, description="Links or documents"
-    )
+    educational_content: str
+    recommended_resources: List[str] = Field(default_factory=list)
 
 
 class CrisisDetectionRequest(BaseModel):
-    conversation_history: List[Dict] = Field(
-        ..., description="Sequence of messages for analysis"
-    )
+    conversation_history: List[Dict] = Field(...)
 
 
 class CrisisDetectionResponse(BaseModel):
-    crisis_score: float = Field(..., description="Computed crisis severity score")
-    escalation_needed: bool = Field(
-        ..., description="Flag indicating if escalation is necessary"
-    )
-    detected_patterns: List[str] = Field(
-        default_factory=list, description="Warning signs identified"
-    )
+    crisis_score: float
+    escalation_needed: bool
+    detected_patterns: List[str] = Field(default_factory=list)
+

@@ -1,29 +1,30 @@
+# tests/_test_firestore_service_real.py
 import pytest
-import asyncio
 from datetime import datetime, UTC
 from app.services.firestore import FirestoreService
-from app.models.db_models import AnonymousUser, Conversation
+from app.models.db_models import User, Conversation
 
 
 @pytest.mark.asyncio
-async def test_create_and_get_user(monkeypatch):
+async def test_create_and_get_user():
     firestore_service = FirestoreService()
 
-    user = AnonymousUser(
+    user = User(
         user_id="testuser123",
-        cultural_background="indian_general",
-        preferred_language="hi-IN",
+        email="test@example.com",
+        hashed_password="hashedpassword",
         created_at=datetime.now(UTC),
     )
-    await firestore_service.create_anonymous_user(user)
+    await firestore_service.create_user(user)
 
-    fetched_user = await firestore_service.get_anonymous_user("testuser123")
+    fetched_user = await firestore_service.get_user("testuser123")
     assert fetched_user is not None
     assert fetched_user.user_id == "testuser123"
+    assert fetched_user.email == "test@example.com"
 
 
 @pytest.mark.asyncio
-async def test_store_and_get_conversation(monkeypatch):
+async def test_store_and_get_conversation():
     fs = FirestoreService()
 
     conv = Conversation(
