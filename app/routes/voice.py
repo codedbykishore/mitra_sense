@@ -4,6 +4,9 @@ from app.services.google_speech import SpeechService
 from fastapi.responses import StreamingResponse, JSONResponse
 import io
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 speech_service = SpeechService()
@@ -47,6 +50,7 @@ async def synthesize_voice(
 @router.post("/voice/pipeline")
 async def full_voice_pipeline(audio: UploadFile = File(...)):
     try:
+        logger.info(f"Received audio file: {audio.filename}, Content-Type: {audio.content_type}")
         audio_bytes = await audio.read()
         result = await speech_service.process_voice_pipeline(audio_bytes)
         return {
@@ -56,6 +60,7 @@ async def full_voice_pipeline(audio: UploadFile = File(...)):
             "emotions": result["emotions"],
         }
     except Exception as e:
+        logger.error(f"Pipeline error in full_voice_pipeline: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
 
 
@@ -67,12 +72,16 @@ async def full_voice_pipeline(audio: UploadFile = File(...)):
 )
 async def full_voice_pipeline_file(audio: UploadFile = File(...)):
     try:
+        logger.info(f"Received audio file (file route): {audio.filename}, Content-Type: {audio.content_type}")
         audio_bytes = await audio.read()
         result = await speech_service.process_voice_pipeline(audio_bytes)
 
+        headers = {"Content-Disposition": "attachment; filename=output.mp3"}
         return StreamingResponse(
             io.BytesIO(result["audio_output"]),
             media_type="audio/mpeg",
+            headers=headers,
         )
     except Exception as e:
+        logger.error(f"Pipeline error in full_voice_pipeline_file: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
