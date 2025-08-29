@@ -1,6 +1,9 @@
 # app/routes/voice.py
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from app.services.google_speech import SpeechService
+from fastapi.responses import StreamingResponse, JSONResponse
+import io
+import base64
 
 router = APIRouter()
 speech_service = SpeechService()
@@ -27,6 +30,7 @@ async def detect_emotion(audio: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Emotion analysis error: {e}")
 
 
+@router.get("/voice/synthesize")
 @router.post("/voice/synthesize")
 async def synthesize_voice(
     text: str, language: str = "en-IN", cultural_tone: str = "empathetic_calm"
@@ -35,7 +39,7 @@ async def synthesize_voice(
         speech_bytes = await speech_service.synthesize_response(
             text, language, cultural_tone
         )
-        return {"audio": speech_bytes}  # Return as bytes, handle streaming if needed
+        return StreamingResponse(io.BytesIO(speech_bytes), media_type="audio/mpeg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS error: {e}")
 
@@ -51,5 +55,24 @@ async def full_voice_pipeline(audio: UploadFile = File(...)):
             "audio_output": result["audio_output"],
             "emotions": result["emotions"],
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
+
+
+@router.get("/voice/pipeline/audio")
+@router.post(
+    "/voice/pipeline/audio",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"audio/mpeg": {}}}},
+)
+async def full_voice_pipeline_file(audio: UploadFile = File(...)):
+    try:
+        audio_bytes = await audio.read()
+        result = await speech_service.process_voice_pipeline(audio_bytes)
+
+        return StreamingResponse(
+            io.BytesIO(result["audio_output"]),
+            media_type="audio/mpeg",
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
