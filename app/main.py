@@ -1,8 +1,12 @@
-# Main application setup with middleware and routing
-from fastapi import FastAPI, middleware
-# from fastapi.middleware.cors import CORSMiddleware
-# from app.routes import crisis, family, peer, input, analytics
-# from app.services.security import SecurityMiddleware
+import logging
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware  # ✅ uncomment this
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="MITRA - Mental Intelligence Through Responsive AI",
@@ -10,18 +14,21 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Security & Privacy Middleware
-# app.add_middleware(SecurityMiddleware)
-# app.add_middleware(CORSMiddleware, allow_origins=["*"])
+# ✅ Add CORS Middleware
+origins = [
+    "http://localhost:5173",  # React dev server (Vite)
+    "http://127.0.0.1:5173",  # Sometimes React runs on 127.0.0.1
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # or ["*"] to allow all origins (less secure)
+    allow_credentials=True,
+    allow_methods=["*"],  # allow all HTTP methods (POST, GET, etc.)
+    allow_headers=["*"],  # allow all headers
+)
 
 # Route Registration
-# app.include_router(input.router, prefix="/api/v1/input")
-# app.include_router(crisis.router, prefix="/api/v1/crisis")
-# app.include_router(peer.router, prefix="/api/v1/peer")
-# app.include_router(family.router, prefix="/api/v1/family")
-# app.include_router(analytics.router, prefix="/api/v1/analytics")
-
-
 from app.routes.input import router as input_router
 from app.routes.voice import router as voice_router
 
@@ -31,4 +38,5 @@ app.include_router(voice_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
+    logger.info("Root endpoint accessed.")
     return {"message": "root end point"}

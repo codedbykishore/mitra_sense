@@ -221,22 +221,28 @@ class SpeechService:
     # Full Pipeline Wrapper
     async def process_voice_pipeline(self, audio_data: bytes) -> Dict:
         """End-to-end: Detect lang → STT → Translate → Gemini → TTS → Emotion analysis."""
+        logger.info(f"process_voice_pipeline received audio_data. Length: {len(audio_data)} bytes. First 50 bytes: {audio_data[:50]}")
         language = await self.detect_language(audio_data)
+        logger.info(f"Detected language: {language}")
         transcript, _ = await self.transcribe_audio(audio_data, language)
+        logger.info(f"Transcript: {transcript}")
 
         # Feed to Gemini (from gemini_ai.py)
         gemini_service = GeminiService()
         gemini_response = await gemini_service.process_cultural_conversation(
             transcript, {"language": language}
         )
+        logger.info(f"Gemini response: {gemini_response}")
 
         # Synthesize audio
         audio_output = await self.synthesize_response(
             gemini_response["response"], language
         )
+        logger.info(f"Audio output length: {len(audio_output)} bytes")
 
         # Detect emotions
         emotions = await self.detect_emotional_tone(audio_data, language)
+        logger.info(f"Detected emotions: {emotions}")
 
         return {
             "transcript": transcript,
