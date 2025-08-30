@@ -11,9 +11,15 @@ google-cloud-storage
 google-cloud-aiplatform
 pytest
 pydantic-settings
+pydantic[email]
+passlib[bcrypt]
 pytest-asyncio
 httpx
 pytest-mock
 pytest-cov
 python-multipart
 vertexai
+python-jose
+passlib
+authlib
+itsdangerous
