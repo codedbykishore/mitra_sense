@@ -1,10 +1,13 @@
 import os
 import json
+from dotenv import load_dotenv
 from pathlib import Path
 from pydantic_settings import BaseSettings
 import logging
 
 logger = logging.getLogger(__name__)
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -12,6 +15,11 @@ class Settings(BaseSettings):
     GOOGLE_CREDENTIALS_FILE: str = str(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
     GOOGLE_PROJECT_ID: str | None = None
     GOOGLE_CLIENT_EMAIL: str | None = None
+
+    GOOGLE_CLIENT_ID: str = str(os.getenv("GOOGLE_CLIENT_ID"))
+    GOOGLE_CLIENT_SECRET: str = str(os.getenv("GOOGLE_CLIENT_SECRET"))
+    REDIRECT_URI:str = str(os.getenv("REDIRECT_URI"))
+    SECRET_KEY:str = str(os.getenv("SECRET_KEY"))
 
     SUPPORTED_LANGUAGES: list[str] = [
         "en-US",  # English (US)
@@ -33,7 +41,9 @@ class Settings(BaseSettings):
                 with open(cred_path, "r") as f:
                     creds = json.load(f)
                 object.__setattr__(self, "GOOGLE_PROJECT_ID", creds.get("project_id"))
-                object.__setattr__(self, "GOOGLE_CLIENT_EMAIL", creds.get("client_email"))
+                object.__setattr__(
+                    self, "GOOGLE_CLIENT_EMAIL", creds.get("client_email")
+                )
             except (IOError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to load Google credentials from {cred_path}: {e}")
 

@@ -1,6 +1,8 @@
 import logging
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware  # ✅ uncomment this
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from app.config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -20,6 +22,8 @@ origins = [
     "http://127.0.0.1:5173",  # Sometimes React runs on 127.0.0.1
 ]
 
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # or ["*"] to allow all origins (less secure)
@@ -31,9 +35,11 @@ app.add_middleware(
 # Route Registration
 from app.routes.input import router as input_router
 from app.routes.voice import router as voice_router
+from app.routes.auth import router as auth_router
 
 app.include_router(input_router, prefix="/api/v1/input")
 app.include_router(voice_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="")
 
 
 @app.get("/")
