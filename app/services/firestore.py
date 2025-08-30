@@ -1,4 +1,3 @@
-
 # app/db/firestore.py
 from typing import Optional
 from google.cloud import firestore
@@ -19,6 +18,16 @@ class FirestoreService:
             return User(**doc.to_dict())
         return None
 
+    async def get_user_by_email(self, email: str) -> Optional[User]:
+        """Fetch a user by their email address."""
+        coll_ref = self.db.collection("users")
+        query = coll_ref.where("email", "==", email)
+        
+        async for doc in query.stream():  # ✅ async for
+            return User(**doc.to_dict())
+        
+        return None
+
     async def update_user(self, user_id: str, data: dict) -> None:
         await self.db.collection("users").document(user_id).update(data)
 
@@ -27,8 +36,10 @@ class FirestoreService:
 
     # ---------- CONVERSATION ----------
     async def store_conversation(self, conversation: Conversation) -> None:
-        await self.db.collection("conversations").document(conversation.conversation_id).set(
-            conversation.model_dump()
+        await (
+            self.db.collection("conversations")
+            .document(conversation.conversation_id)
+            .set(conversation.model_dump())
         )
 
     async def get_conversation(self, conversation_id: str) -> Optional[Conversation]:
@@ -43,13 +54,19 @@ class FirestoreService:
     async def delete_conversation(self, conversation_id: str) -> None:
         await self.db.collection("conversations").document(conversation_id).delete()
 
-    async def add_message_to_conversation(self, conversation_id: str, message: dict) -> None:
+    async def add_message_to_conversation(
+        self, conversation_id: str, message: dict
+    ) -> None:
         ref = self.db.collection("conversations").document(conversation_id)
         await ref.update({"messages": firestore.ArrayUnion([message])})
 
     # ---------- PEER CIRCLE ----------
     async def create_peer_circle(self, circle: PeerCircle) -> None:
-        await self.db.collection("peer_circles").document(circle.circle_id).set(circle.model_dump())
+        await (
+            self.db.collection("peer_circles")
+            .document(circle.circle_id)
+            .set(circle.model_dump())
+        )
 
     async def get_peer_circle(self, circle_id: str) -> Optional[PeerCircle]:
         doc = await self.db.collection("peer_circles").document(circle_id).get()
@@ -65,7 +82,11 @@ class FirestoreService:
 
     # ---------- CRISIS ALERT ----------
     async def create_crisis_alert(self, alert: CrisisAlert) -> None:
-        await self.db.collection("crisis_alerts").document(alert.alert_id).set(alert.model_dump())
+        await (
+            self.db.collection("crisis_alerts")
+            .document(alert.alert_id)
+            .set(alert.model_dump())
+        )
 
     async def get_crisis_alert(self, alert_id: str) -> Optional[CrisisAlert]:
         doc = await self.db.collection("crisis_alerts").document(alert_id).get()
@@ -78,4 +99,3 @@ class FirestoreService:
 
     async def delete_crisis_alert(self, alert_id: str) -> None:
         await self.db.collection("crisis_alerts").document(alert_id).delete()
-
