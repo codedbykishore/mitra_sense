@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = str(os.getenv("GOOGLE_CLIENT_SECRET"))
     REDIRECT_URI:str = str(os.getenv("REDIRECT_URI"))
     SECRET_KEY:str = str(os.getenv("SECRET_KEY"))
+    CORPUS_NAME:str = str(os.getenv("CORPUS_NAME"))
 
     SUPPORTED_LANGUAGES: list[str] = [
         "en-US",  # English (US)

@@ -2,9 +2,10 @@
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from app.config import settings
 
 # Secret key for signing JWTs
-SECRET_KEY = "super-secret-key"  # 👉 replace with settings.SECRET_KEY later
+SECRET_KEY = settings.SECRET_KEY  # 👉 replace with settings.SECRET_KEY later
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
 
