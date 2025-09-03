@@ -8,7 +8,7 @@ google-cloud-texttospeech
 google-cloud-translate
 google-cloud-firestore
 google-cloud-storage
-google-cloud-aiplatform
+google-cloud-aiplatform==1.111.0
 pytest
 pydantic-settings
 pydantic[email]
