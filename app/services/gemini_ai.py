@@ -17,34 +17,27 @@ DetectorFactory.seed = 0
 logger = logging.getLogger(__name__)
 
 class GeminiService:
-    def __init__(self, project_id: Optional[str] = None, location: str = "us-central1", model_name: str = "gemini-2.0-flash", rag_corpus_name: Optional[str] = None):
+    def __init__(self, project_id: Optional[str] = None, location: str = "us-central1", 
+                 model_name: str = "gemini-2.0-flash", rag_corpus_name: Optional[str] = None):
         """
-        GeminiService for Vertex AI (GenerativeModel).
-        If project_id is not provided, try to auto-detect from settings or
-        the GOOGLE_APPLICATION_CREDENTIALS JSON.
+        GeminiService for Vertex AI (GenerativeModel) with RAG support and language awareness.
+        
+        Args:
+            project_id: Google Cloud project ID
+            location: GCP region (default: us-central1)
+            model_name: Name of the Gemini model to use (default: gemini-2.0-flash)
+            rag_corpus_name: Name of the RAG corpus to use for retrieval
         """
-        # first prefer explicit argument, then settings (loaded from credentials JSON), then env
-        project_id =  getattr(settings, "GOOGLE_PROJECT_ID", None)
-
-
-        # # If still not found, try to read the service account JSON pointed by GOOGLE_APPLICATION_CREDENTIALS
-        # if not project_id:
-        #     cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS") or getattr(settings, "GOOGLE_CREDENTIALS_FILE", None)
-        #     if cred_path and os.path.isfile(cred_path):
-        #         try:
-        #             with open(cred_path, "r") as f:
-        #                 creds = json.load(f)
-        #             project_id = creds.get("project_id")
-        #         except Exception as e:
-        #             logger.warning("Failed to read project_id from credentials file: %s", e)
-
+        # First prefer explicit argument, then settings, then environment
+        project_id = project_id or getattr(settings, "GOOGLE_PROJECT_ID", None)
+        
         if not project_id:
-            raise ValueError("project_id not provided and could not be auto-detected from settings/credentials/env")
+            raise ValueError("project_id not provided and could not be auto-detected from settings/credentials")
 
         self.project_id = project_id
         self.location = location
         self.model_name = model_name
-        self.rag_corpus_name = getattr(settings, "CORPUS_NAME", None) # Store RAG corpus name
+        self.rag_corpus_name = rag_corpus_name or getattr(settings, "CORPUS_NAME", None)
 
         # Initialize Vertex AI
         try:
@@ -54,34 +47,92 @@ class GeminiService:
             logger.error(f"Failed to initialize Vertex AI API: {e}")
             raise
 
-        # Initialize GenerativeModel with or without RAG
-        if self.rag_corpus_name:
-            rag_retrieval_config = rag.RagRetrievalConfig(top_k=3) # Default top_k
-            rag_retrieval_tool = Tool.from_retrieval(
-                retrieval=rag.Retrieval(
-                    source=rag.VertexRagStore(
-                        rag_resources=[rag.RagResource(rag_corpus=self.rag_corpus_name)],
-                        rag_retrieval_config=rag_retrieval_config
-                    ),
-                )
-            )
-            self.model = GenerativeModel(model_name=self.model_name, tools=[rag_retrieval_tool])
-            logger.info(f"GeminiService initialized with RAG corpus: {self.rag_corpus_name}")
+        # Initialize the base model
+        self.model = GenerativeModel(model_name=self.model_name)
+        self.rag_enabled = bool(self.rag_corpus_name)
+        
+        if self.rag_enabled:
+            # We'll create the RAG tool dynamically in the analyze method
+            # to support language-specific filtering
+            logger.info(f"RAG support enabled with corpus: {self.rag_corpus_name}")
         else:
-            self.model = GenerativeModel(model_name=self.model_name)
-            logger.info("GeminiService initialized without RAG.")
+            logger.info("RAG support not enabled (no corpus name provided)")
 
+    def _create_rag_tool(self, language: Optional[str] = None) -> Tool:
+        """
+        Create a RAG tool with optional language filtering.
+        
+        Args:
+            language: Optional language code to filter RAG results
+            
+        Returns:
+            Configured Tool instance for RAG
+        """
+        # Base retrieval config
+        rag_retrieval_config = rag.RagRetrievalConfig(top_k=3)
+        
+        # Add language filter if specified
+        rag_filters = []
+        if language:
+            rag_filters.append(f"language='{language}'")
+            logger.debug(f"Adding language filter: {language}")
+        
+        # Create the RAG resource with filters
+        rag_resource = rag.RagResource(
+            rag_corpus=self.rag_corpus_name,
+            rag_filters=rag_filters or None
+        )
+        
+        return Tool.from_retrieval(
+            retrieval=rag.Retrieval(
+                source=rag.VertexRagStore(
+                    rag_resources=[rag_resource],
+                    rag_retrieval_config=rag_retrieval_config
+                ),
+            )
+        )
+        
     async def analyze(self, text: str, language: Optional[str] = None) -> Any:
         """
-        Run the model.generate_content call in a thread and return the raw response.
+        Run the model.generate_content call with optional RAG and language filtering.
+        
+        Args:
+            text: The input text to process
+            language: Optional language code to filter RAG results and set response language
+            
+        Returns:
+            The raw response from the model
         """
         def sync_call():
             contents: List[Any] = [text]
+            tools = []
+            
+            # Add language instruction if specified
             if language:
-                contents.append(f"Please respond in {language}.")
-            return self.model.generate_content(contents=contents) # Pass contents as a list
+                lang_name = self.get_language_name(language)
+                contents.append(f"Please respond in {lang_name}.")
+            
+            # Add RAG tool if enabled
+            if self.rag_enabled:
+                rag_tool = self._create_rag_tool(language)
+                tools.append(rag_tool)
+            
+            # Generate content with tools if RAG is enabled
+            return self.model.generate_content(
+                contents=contents,
+                tools=tools if tools else None
+            )
         
-        return await asyncio.to_thread(sync_call)
+        try:
+            return await asyncio.to_thread(sync_call)
+        except Exception as e:
+            logger.error(f"Error in analyze: {str(e)}")
+            # Fallback to non-RAG response if RAG fails
+            if self.rag_enabled:
+                logger.warning("Falling back to non-RAG response due to error")
+                self.rag_enabled = False
+                return await self.analyze(text, language)
+            raise
 
     def detect_language(self, text: str) -> Tuple[str, float]:
         """
@@ -140,12 +191,14 @@ class GeminiService:
         
         Args:
             text: The input text from the user
-            options: Additional options for the conversation
+            options: Additional options for the conversation, including RAG context
             language: Optional language code to force response in a specific language
             
         Returns:
             Dict with the response and metadata
         """
+        options = options or {}
+        
         # Detect language if not provided
         detected_lang = None
         confidence = 0.0
@@ -157,10 +210,22 @@ class GeminiService:
         response_language = language or detected_lang or 'en'
         
         # Log the language context
-        logger.info(f"Processing with language: {response_language}, Detected: {detected_lang}, Confidence: {confidence:.2f}, Options: {options}")
+        logger.info(f"Processing with language: {response_language}, Detected: {detected_lang}, Confidence: {confidence:.2f}")
         
-        # Process the query with the detected language
-        resp = await self.analyze(text, response_language)
+        # Format the prompt with RAG context if available
+        rag_context = options.get('rag_context', '')
+        if rag_context:
+            prompt = f"""Context from knowledge base:
+{rag_context}
+
+User's question: {text}
+
+Please provide a helpful response based on the context above. If the context doesn't contain relevant information, use your general knowledge."""
+        else:
+            prompt = text
+        
+        # Process the query with the detected language and RAG context
+        resp = await self.analyze(prompt, response_language)
 
         # Try to extract text in common shapes:
         # 1. genai response object with `.text`
