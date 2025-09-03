@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -36,10 +37,13 @@ app.add_middleware(
 from app.routes.input import router as input_router
 from app.routes.voice import router as voice_router
 from app.routes.auth import router as auth_router
-
+from app.services.gemini_ai import GeminiService
 app.include_router(input_router, prefix="/api/v1/input")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="")
+
+rag_corpus_name = getattr(settings, "CORPUS_NAME", None)
+gemini_service = GeminiService(rag_corpus_name=rag_corpus_name)
 
 
 @app.get("/")

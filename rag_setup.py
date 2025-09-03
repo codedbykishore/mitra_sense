@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     # Step 2: Set bucket path
     bucket_path = (
-        f"gs://{PROJECT_ID}-mitra-rag-eu/knowledge_base/mitra_knowledge_base.jsonl"
+        f"gs://mitra-sense-rag-bucket/rag_data/mitra_knowledge_base.jsonl"
     )
 
     # Step 3: Import data

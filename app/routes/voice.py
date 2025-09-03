@@ -5,11 +5,12 @@ from fastapi.responses import StreamingResponse, JSONResponse
 import io
 import base64
 import logging
+from app.config import settings # Import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-speech_service = SpeechService()
+speech_service = SpeechService(rag_corpus_name=settings.CORPUS_NAME) # Pass RAG corpus name
 
 
 @router.post("/voice/transcribe")
