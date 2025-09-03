@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.services.gemini_ai import GeminiService
+from typing import Optional, Any, Dict
 
 router = APIRouter()
 
@@ -9,6 +10,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     text: str
     context: dict = {}
+    language: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -22,7 +24,7 @@ gemini_service = GeminiService()
 async def chat_endpoint(req: ChatRequest):
     try:
         result = await gemini_service.process_cultural_conversation(
-            req.text, req.context
+            req.text, req.context, req.language
         )
         return ChatResponse(response=result.get("response", ""))
     except Exception as e:
