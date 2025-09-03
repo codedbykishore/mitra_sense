@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class SpeechService:
-    def __init__(self):
+    def __init__(self, rag_corpus_name: Optional[str] = None):
         try:
             self.speech_client = (
                 speech.SpeechClient()
@@ -24,6 +24,8 @@ class SpeechService:
             )  # Automatically fetches the $GOOGLE_APPLICATON_CREDENTIAL
             self.translate_client = translate.Client()
             self.supported_languages = settings.SUPPORTED_LANGUAGES
+            self.rag_corpus_name = rag_corpus_name
+            self.gemini_service = GeminiService(rag_corpus_name=self.rag_corpus_name) # Instantiate GeminiService once
             logger.info("Google Speech services initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Google Speech services: {e}")
@@ -170,14 +172,12 @@ class SpeechService:
 
         try:
             # Try Gemini integration
-            gemini_service = GeminiService()
-
             emotion_prompt = (
                 f"Analyze emotional tone from this transcript: '{transcript}'. "
                 f'Return ONLY JSON like this: {{"anxiety": 0.0, "sadness": 0.0, "calmness": 0.0, "anger": 0.0}}'
             )
 
-            gemini_response = await gemini_service.process_cultural_conversation(
+            gemini_response = await self.gemini_service.process_cultural_conversation(
                 emotion_prompt, {"analysis_mode": "emotion"}
             )
 
@@ -228,8 +228,7 @@ class SpeechService:
         logger.info(f"Transcript: {transcript}")
 
         # Feed to Gemini (from gemini_ai.py)
-        gemini_service = GeminiService()
-        gemini_response = await gemini_service.process_cultural_conversation(
+        gemini_response = await self.gemini_service.process_cultural_conversation(
             transcript, {"language": language}
         )
         logger.info(f"Gemini response: {gemini_response}")
