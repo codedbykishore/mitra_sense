@@ -59,3 +59,47 @@ class CrisisDetectionResponse(BaseModel):
     escalation_needed: bool
     detected_patterns: List[str] = Field(default_factory=list)
 
+
+class RAGQuery(BaseModel):
+    """Schema for RAG query parameters"""
+    query: str = Field(..., description="The search query")
+    language: str = Field("en", description="Language code (e.g., 'en', 'hi')")
+    region: Optional[str] = Field(
+        None,
+        description="Region code (e.g., 'north_india', 'south_india')",
+        example="north_india"
+    )
+    tags: Optional[List[str]] = Field(
+        None,
+        description="List of tags to filter by",
+        example=["cultural", "coping"]
+    )
+    max_results: int = Field(
+        5,
+        ge=1,
+        le=20,
+        description="Maximum number of results to return"
+    )
+    min_score: float = Field(
+        0.6,
+        ge=0.0,
+        le=1.0,
+        description="Minimum relevance score (0-1)"
+    )
+
+
+class RAGResponse(BaseModel):
+    """Schema for RAG response items"""
+    text: str = Field(..., description="The retrieved text content")
+    title: str = Field(..., description="Title of the document")
+    source: str = Field(..., description="Source of the document")
+    language: str = Field(..., description="Language of the document")
+    region: str = Field(..., description="Region the document is relevant for")
+    tags: List[str] = Field(..., description="Tags associated with the document")
+    sensitivity: str = Field(..., description="Sensitivity level of the content")
+    relevance_score: float = Field(
+        ...,
+        description="Relevance score (0-1)",
+        ge=0.0,
+        le=1.0
+    )
