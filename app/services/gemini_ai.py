@@ -2,12 +2,17 @@
 import asyncio
 import os
 import json
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Tuple
 import vertexai # Use vertexai for initialization
 from vertexai import rag # Import rag for RAG functionality
 from vertexai.generative_models import GenerativeModel, Tool # For RAG-enabled model
+from langdetect import detect, detect_langs, DetectorFactory, LangDetectException
+# LANGUAGES is not directly importable in newer versions, we'll define our own mapping
 from app.config import settings
 import logging
+
+# Ensure consistent results for language detection
+DetectorFactory.seed = 0
 
 logger = logging.getLogger(__name__)
 
@@ -78,13 +83,84 @@ class GeminiService:
         
         return await asyncio.to_thread(sync_call)
 
+    def detect_language(self, text: str) -> Tuple[str, float]:
+        """
+        Detect the language of the input text.
+        
+        Args:
+            text: Input text to detect language from
+            
+        Returns:
+            Tuple of (language_code, confidence)
+        """
+        try:
+            # Get all possible languages with probabilities
+            languages = detect_langs(text)
+            if not languages:
+                return 'en', 0.0
+                
+            # Get the most probable language
+            best_match = languages[0]
+            return best_match.lang, best_match.prob
+            
+        except LangDetectException:
+            return 'en', 0.0
+            
+    def get_language_name(self, lang_code: str) -> str:
+        """Get full language name from language code."""
+        # Common language code to name mapping
+        LANGUAGE_NAMES = {
+            'en': 'English',
+            'hi': 'Hindi',
+            'es': 'Spanish',
+            'fr': 'French',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'ru': 'Russian',
+            'zh': 'Chinese',
+            'ja': 'Japanese',
+            'ko': 'Korean',
+            'ar': 'Arabic',
+            'bn': 'Bengali',
+            'pa': 'Punjabi',
+            'ta': 'Tamil',
+            'te': 'Telugu',
+            'mr': 'Marathi',
+            'gu': 'Gujarati',
+            'kn': 'Kannada',
+            'ml': 'Malayalam',
+            'or': 'Odia',
+        }
+        return LANGUAGE_NAMES.get(lang_code, 'English')
+
     async def process_cultural_conversation(self, text: str, options: Optional[Dict] = None, language: Optional[str] = None) -> Dict[str, Any]:
         """
-        Backwards-compatible wrapper expected by google_speech.process_voice_pipeline.
-        Returns a dict of the form: {"response": "<generated text>"}.
+        Process conversation with cultural context awareness and language detection.
+        
+        Args:
+            text: The input text from the user
+            options: Additional options for the conversation
+            language: Optional language code to force response in a specific language
+            
+        Returns:
+            Dict with the response and metadata
         """
-        resp = await self.analyze(text, language)
-        logger.info(f"RAG Context: {options}, Language: {language}")
+        # Detect language if not provided
+        detected_lang = None
+        confidence = 0.0
+        if not language and text.strip():
+            detected_lang, confidence = self.detect_language(text)
+            logger.info(f"Detected language: {detected_lang} (confidence: {confidence:.2f})")
+        
+        # Use detected language if no language was explicitly provided
+        response_language = language or detected_lang or 'en'
+        
+        # Log the language context
+        logger.info(f"Processing with language: {response_language}, Detected: {detected_lang}, Confidence: {confidence:.2f}, Options: {options}")
+        
+        # Process the query with the detected language
+        resp = await self.analyze(text, response_language)
 
         # Try to extract text in common shapes:
         # 1. genai response object with `.text`
