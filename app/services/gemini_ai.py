@@ -133,6 +133,55 @@ class GeminiService:
                 self.rag_enabled = False
                 return await self.analyze(text, language)
             raise
+    
+
+    async def analyze_risk(self, text: str, language: Optional[str] = None) -> int:
+        """
+        Analyze the input text for crisis risk using Gemini and return a risk score (0-10).
+        Attempts to extract a risk score from the model's response; defaults to 0 if not found.
+        Includes debug logging to inspect Gemini's raw response.
+        """
+        import re
+
+        prompt = (
+            f"You are a mental health risk assessment AI. "
+            f"Given the following message, return ONLY a single integer risk score (0-10) for crisis risk. "
+            f"0 = no risk, 10 = immediate crisis.\n"
+            f"Message: {text}\nRisk score:"
+        )
+        try:
+            resp = await self.analyze(prompt, language)
+            logger.debug(f"[GeminiService] Raw Gemini response for risk prompt: {repr(resp)}")
+
+            score = None
+            # Try to extract score from common response shapes
+            if isinstance(resp, dict):
+                for key in ("response", "output", "content"):
+                    val = resp.get(key)
+                    if val is not None:
+                        logger.debug(f"[GeminiService] Found key '{key}' in response: {repr(val)}")
+                        score = val
+                        break
+            elif hasattr(resp, "text"):
+                logger.debug(f"[GeminiService] Found .text in response: {repr(resp.text)}")
+                score = resp.text
+            else:
+                logger.debug(f"[GeminiService] Fallback: using str(resp): {repr(str(resp))}")
+                score = str(resp)
+
+            # Extract integer from score string
+            match = re.search(r"\b(\d{1,2})\b", str(score))
+            if match:
+                value = int(match.group(1))
+                logger.info(f"[GeminiService] Extracted risk score: {value} from response: {repr(score)}")
+                return max(0, min(10, value))
+            else:
+                logger.warning(f"[GeminiService] Could not extract risk score from Gemini response: {repr(score)}")
+                return 0
+        except Exception as e:
+            logger.error(f"[GeminiService] Gemini risk analysis failed: {e}")
+            return 0
+
 
     def detect_language(self, text: str) -> Tuple[str, float]:
         """
