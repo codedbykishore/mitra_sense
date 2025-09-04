@@ -38,6 +38,8 @@ from app.routes.input import router as input_router
 from app.routes.voice import router as voice_router
 from app.routes.auth import router as auth_router
 from app.services.gemini_ai import GeminiService
+from app.routes.crisis import router as crisis_router
+app.include_router(crisis_router, prefix="/api/v1/crisis", tags=["crisis"])
 app.include_router(input_router, prefix="/api/v1/input")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="")
