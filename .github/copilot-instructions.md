@@ -320,3 +320,5 @@ TELE_MANAS_ALT_PHONE="1800-891-4416"
 2. **Safety Testing**: Crisis intervention features tested with mental health professionals
 3. **Performance Validation**: Voice and AI response latency within acceptable limits
 4. **Privacy Audit**: Data handling compliance with privacy-first principles
+
+**Never give only code give some explanation on what you have done and why have you done**
