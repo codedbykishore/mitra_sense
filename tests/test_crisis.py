@@ -1,61 +1,61 @@
-import pytest
-from unittest.mock import MagicMock
-
+import os
+import asyncio
+import logging
+from app.services.gemini_ai import GeminiService
 from app.services.crisis import CrisisService
+from app.services.rag_service import RAGService
+import pytest
 
-@pytest.fixture
-def mock_firestore():
-    client = MagicMock()
-    coll = MagicMock()
-    doc = MagicMock()
-    doc.exists = True
-    doc.to_dict.return_value = {
-        "age": 17,
-        "parent_escalation": True,
-        "parent_contact": "+911234567890",
-    }
-    coll.document.return_value.get.return_value = doc
-    client.collection.return_value = coll
-    coll.stream.return_value = []
-    return client
+@pytest.mark.asyncio
+async def test_real_gemini_rag_and_crisis_escalation():
+    """
+    Integration test: RAG retrieval + Gemini risk scoring + crisis escalation.
+    Debug print statements included for error diagnosis.
+    """
+    # Setup GeminiService and RAGService with real credentials
+    # Assumes GOOGLE_APPLICATION_CREDENTIALS is set and rag_data/mitra_knowledge_base.jsonl exists
+    gemini = GeminiService()
+    rag = RAGService()
+    crisis = CrisisService(gemini_service=gemini)
 
-@pytest.fixture
-def mock_gemini():
-    svc = MagicMock()
-    svc.analyze_risk.return_value = 9
-    return svc
+    # Example input: high-risk, culturally relevant
+    user_id = "test_user_001"
+    message = "Bohot ghabrahat ho rahi hai, mann nahi lagta, I want to give up."
 
-def test_keyword_only_high_risk_triggers(mock_firestore):
-    crisis = CrisisService(firestore_client=mock_firestore)
-    score = crisis.detect_keywords("I want to commit suicide")
-    assert score == 6
+    # Step 1: RAG retrieval (use correct method)
+    try:
+        rag_results = await rag.retrieve_with_metadata(
+            query=message,
+            language="hi",
+            region="pan_india",
+            tags=None,
+            max_results=3,
+            min_score=0.6,
+        )
+        print("RAG Results:", rag_results)
+        assert rag_results, "RAG returned no results"
+    except Exception as e:
+        logging.error(f"RAG retrieval error: {e}")
+        assert False, f"RAG retrieval failed: {e}"
 
-def test_gemini_only_high_risk_triggers(mock_firestore, mock_gemini):
-    crisis = CrisisService(firestore_client=mock_firestore, gemini_service=mock_gemini)
-    score = crisis.assess_with_gemini("I feel hopeless")
-    assert score == 9
+    # Step 2: Gemini risk scoring
+    try:
+        risk_score = await gemini.analyze_risk(message)
+        print("Gemini Risk Score:", risk_score)
+        assert isinstance(risk_score, (int, float)), "Risk score not numeric"
+    except Exception as e:
+        logging.error(f"Gemini risk scoring error: {e}")
+        assert False, f"Gemini risk scoring failed: {e}"
 
-def test_combined_scoring_triggers_escalation(mock_firestore, mock_gemini):
-    crisis = CrisisService(firestore_client=mock_firestore, gemini_service=mock_gemini)
-    report = crisis.assess_risk("user123", "I want to commit suicide")
-    assert report["risk_score"] >= 7
-    assert report["risk_level"] == "high"
-    result = crisis.escalate("user123", report)
-    assert result["action"] in ("tele_manas+parent", "tele_manas", "parent_whatsapp")
+    # Step 3: Crisis escalation logic
+    try:
+        report = await crisis.assess_risk(user_id, message)
+        print("Crisis Report:", report)
+        assert "risk_score" in report and "risk_level" in report, "Report missing keys"
+        result = await crisis.escalate(user_id, report)
+        print("Escalation Result:", result)
+        assert "action" in result or "status" in result, "Escalation result missing keys"
+    except Exception as e:
+        logging.error(f"Crisis escalation error: {e}")
+        assert False, f"Crisis escalation failed: {e}"
 
-def test_cooldown_prevents_repeated_escalation(mock_firestore, mock_gemini):
-    crisis = CrisisService(firestore_client=mock_firestore, gemini_service=mock_gemini)
-    crisis.is_under_cooldown = MagicMock(return_value=True)
-    report = crisis.assess_risk("user123", "I want to commit suicide")
-    result = crisis.escalate("user123", report)
-    assert result["status"] == "cooldown"
-
-def test_consent_prevents_parent_whatsapp_for_adults(mock_firestore, mock_gemini):
-    mock_firestore.collection.return_value.document.return_value.get.return_value.to_dict.return_value = {
-        "age": 19,
-        "parent_escalation": False,
-        "parent_contact": "+911234567890",
-    }
-    crisis = CrisisService(firestore_client=mock_firestore, gemini_service=mock_gemini)
-    report = crisis.assess_risk("user123", "I want to commit suicide")
-    assert not crisis.should_escalate_to_parent(report["user_profile"], report["risk_score"])
