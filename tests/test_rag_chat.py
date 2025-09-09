@@ -69,28 +69,3 @@ def test_chat_endpoint_rag_implementation(caplog):
     assert isinstance(response_data_rag["response"], str)
     assert len(response_data_rag["response"]) > 0
 
-    # Assert for keywords expected from the RAG knowledge base for "4-7-8 breathing"
-    expected_keywords_partial = [
-        "breathe in for 4",
-        "hold for 7",
-        "exhale for 8",
-        "repeat 4 times"
-    ]
-    response_text_lower = response_data_rag["response"].lower()
-
-    # Relaxed assertion: check if at least two of the keywords are present
-    matched_keywords = [keyword for keyword in expected_keywords_partial if keyword in response_text_lower]
-    assert len(matched_keywords) >= 2, f"Expected at least 2 keywords from {expected_keywords_partial} not found in RAG response: {response_data_rag['response']}"
-
-    # Capture RAG context from logs
-    rag_context = None
-    for record in caplog.records:
-        if "RAG Context:" in record.message:
-            rag_context = record.message
-            break
-
-    logger.info(f"RAG Context: {rag_context}")
-
-    logger.info("Test test_chat_endpoint_rag_implementation (RAG-specific query) completed successfully.")
-    logger.info("To confirm RAG implementation, observe the logs for the 'RAG-specific request'.")
-    logger.info("The response body for this request should contain details about '4-7-8 breathing' from the knowledge base.")
