@@ -1,324 +1,335 @@
 # MITRA - Mental Health Intelligence Through Responsive AI
 
-This repo is a **full-stack Python FastAPI + React TypeScript application** for culturally-aware mental health support for Indian youth, using Google Cloud Vertex AI RAG Engine, Gemini 2.0 Flash, and Firestore.
+This is a **full-stack Python FastAPI + React TypeScript application** for culturally-aware mental health support for Indian youth, using Google Cloud Vertex AI RAG Engine, Gemini 2.0 Flash, and Firestore.
 
-## Project Architecture
+## Essential Development Patterns
 
-```
-├── app/                          # Backend FastAPI application
-│   ├── main.py                   # FastAPI app entry point with all routes
-│   ├── config.py                 # Settings and environment configuration
-│   ├── core/
-│   │   └── security.py           # Authentication and security utilities
-│   ├── dependencies/
-│   │   └── auth.py               # Dependency injection for auth
-│   ├── models/
-│   │   ├── db_models.py          # Firestore/database models
-│   │   └── schemas.py            # Pydantic request/response models
-│   ├── routes/                   # API endpoints organized by feature
-│   │   ├── input.py              # Chat endpoints with RAG
-│   │   ├── voice.py              # Voice processing pipeline
-│   │   ├── crisis.py             # Crisis detection and intervention
-│   │   ├── family.py             # Family education and guidance
-│   │   ├── peer.py               # Peer support and matching
-│   │   ├── auth.py               # Authentication endpoints
-│   │   ├── analytics.py          # Usage analytics and monitoring
-│   │   └── rag.py                # RAG-specific endpoints
-│   └── services/                 # Core business logic services
-│       ├── gemini_ai.py          # Primary AI service with RAG integration
-│       ├── google_speech.py      # Speech-to-text, TTS, emotion detection
-│       ├── rag_service.py        # RAG implementation and knowledge retrieval
-│       ├── firestore.py          # Firestore database operations
-│       └── security.py           # Security and encryption services
-├── frontend/                     # React TypeScript web application
-│   ├── src/
-│   │   ├── App.tsx               # Main React application
-│   │   ├── components/
-│   │   │   └── Chatbot.tsx       # Chat interface component
-│   │   └── assets/               # Static assets
-│   └── package.json              # Frontend dependencies (React, TypeScript, Tailwind)
-├── tests/                        # Comprehensive test suite
-│   ├── test_gemini_ai.py         # AI service tests
-│   ├── test_google_speech.py     # Speech processing tests
-│   ├── test_rag_*.py             # RAG system integration tests
-│   ├── test_firestore_service.py # Database service tests
-│   └── audio/                    # Test audio files for speech testing
-├── rag_data/
-│   └── mitra_knowledge_base.jsonl # 600+ cultural mental health resources
-├── secrets/
-│   └── secrets.json              # GCP service account credentials
-└── resources/                    # Documentation and project resources
+### Configuration & Environment Setup
+
+**Critical**: The `secrets/google-credentials.json` file (NOT `secrets.json`) contains GCP service account credentials. The `app/config.py` uses a custom pattern to load both env vars and JSON credentials:
+
+```python
+# Always export this before running anything
+export GOOGLE_APPLICATION_CREDENTIALS="secrets/google-credentials.json" 
+
+# Run backend
+uvicorn app.main:app --reload  # FastAPI at localhost:8000
+
+# Run frontend
+cd frontend && npm run dev     # Vite at localhost:5173
 ```
 
-## Key Technologies & Dependencies
+### Service Layer Architecture
 
-### Backend Stack
+**All services follow async patterns** - never create sync methods in services. Example from `GeminiService`:
 
-- **AI/ML**: Vertex AI RAG Engine, Gemini 2.0 Flash, Google Speech APIs
-- **Framework**: FastAPI with async/await patterns
-- **Database**: Google Firestore (NoSQL) for scalable user data
-- **Authentication**: Custom JWT with security middleware
-- **Cloud**: Google Cloud Platform (Vertex AI, Cloud Storage, Firestore)
+```python
+# ✅ Correct pattern
+async def process_cultural_conversation(self, message: str, language: str) -> Dict:
+    
+# ❌ Avoid sync methods in services  
+def process_message(self, message: str) -> Dict:
+```
 
-### Frontend Stack
+**3-tier fallback system**: RAG → basic AI → emergency response. Every AI interaction must have fallback logic.
 
-- **Framework**: React 18 + TypeScript
-- **Styling**: Tailwind CSS for responsive design
-- **Build**: Vite for fast development and building
-- **Components**: Custom chat interface with voice support
+### Testing Strategy
 
-### Languages Supported
-
-- **Primary**: English, Hindi, Tamil, Telugu
-- **Cultural Context**: Hindi expressions, Indian family dynamics
-
-## How to Run & Test
-
-### Backend Development
+Use pytest markers for different test categories:
 
 ```bash
-#Activate venv
-source venv/bin/activate
+# Run all tests
+python -m pytest -qvs
 
+# Integration tests only (require real GCP credentials)  
+python -m pytest -qvs -m integration
 
-# Run FastAPI development server
-uvicorn app.main:app --reload
-
-# API will be available at http://localhost:8000
-# Interactive docs at http://localhost:8000/docs
+# Unit tests only (mocked dependencies)
+python -m pytest -qvs -m "not integration"
 ```
 
-### Frontend Development
+**Critical**: Integration tests in files like `test_*_real.py` require actual GCP setup. Unit tests mock all external dependencies.
 
-```bash
-# Navigate to frontend directory
-cd frontend
+### API Route Patterns
 
-# Run React development server
-npm run dev
+Routes are organized by domain in `app/routes/`. Each router follows this pattern:
 
-# Frontend will be available at http://localhost:5173
+```python
+# app/routes/domain.py
+from fastapi import APIRouter, Depends
+from app.models.schemas import DomainRequest, DomainResponse
+
+router = APIRouter()
+
+@router.post("/endpoint", response_model=DomainResponse)
+async def endpoint_handler(request: DomainRequest):
+    # Always async, always use Pydantic models
 ```
 
-### Testing
+Register in `app/main.py`: `app.include_router(router, prefix="/api/v1/domain")`
 
-```bash
-# Run all backend tests
-python -m pytest -vs tests/
-
-
-# Test API endpoints
-curl http://localhost:8000/api/v1/input/chat -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Bohot ghabrahat ho rahi hai exams ke liye"}'
-```
-
-## Core Services & Architecture Patterns
+## Core Service Dependencies & Integration Points
 
 ### GeminiService (`app/services/gemini_ai.py`)
 
-- **Primary AI orchestrator** using Vertex AI RAG Engine + Gemini 2.0
-- **Cultural intelligence**: Understands Hindi expressions like "ghabrahat", "mann nahi lagta"
-- **Crisis detection**: Multi-level risk assessment with automatic escalation
-- **Key methods**: `process_cultural_conversation()`, `detect_crisis_patterns()`, `generate_family_education()`
+**The main AI orchestrator** - handles RAG-enabled conversations with cultural context:
 
-### SpeechService (`app/services/google_speech.py`)
+```python
+# Initialize with RAG corpus
+gemini_service = GeminiService(rag_corpus_name=settings.CORPUS_NAME)
 
-- **Multilingual voice processing** with emotion detection
-- **Pipeline**: Audio input → Language detection → STT → AI processing → TTS → Audio output
-- **Supported**: Hindi, English, Tamil, Telugu with cultural tone adaptation
-- **Key methods**: `transcribe_audio()`, `synthesize_response()`, `process_voice_pipeline()`
-
-### RAGService (`app/services/rag_service.py`)
-
-- **Knowledge retrieval** from culturally-curated mental health database
-- **Context-aware**: Filters content by cultural background, crisis level, language
-- **Integration**: Works with Vertex AI Vector Search and embedding models
-
-### FirestoreService (`app/services/firestore.py`)
-
-- **Database operations** for user data, conversations, crisis alerts
-- **Privacy-first**: Anonymous user tracking with encrypted sensitive data
-- **Scalable**: Designed for millions of users across India
-
-## API Endpoints Structure
-
-```
-/api/v1/
-├── input/                        # Core chat functionality
-│   ├── POST /chat                # Main chat with RAG enhancement
-│   ├── POST /crisis/detect       # Crisis pattern analysis
-│   └── POST /family/education    # Family guidance generation
-├── voice/                        # Voice processing pipeline
-│   ├── POST /transcribe          # Speech-to-text
-│   ├── POST /synthesize          # Text-to-speech with cultural tone
-│   ├── POST /emotion             # Emotion detection from audio
-│   └── POST /pipeline            # Full voice processing pipeline
-├── auth/                         # Authentication & user management
-│   ├── POST /register            # Anonymous user registration
-│   ├── POST /login               # Session management
-│   └── GET  /profile             # User preferences and settings
-├── peer/                         # Peer support features
-│   ├── POST /match               # Cultural peer matching
-│   └── GET  /circles             # Active support groups
-├── analytics/                    # Usage monitoring (privacy-preserving)
-│   ├── GET  /health              # System health and performance
-│   └── POST /feedback            # User feedback collection
-└── rag/                          # RAG system management
-    ├── GET  /status              # RAG system health
-    └── POST /search              # Direct knowledge base queries
+# Cultural conversation processing
+response = await gemini_service.process_cultural_conversation(
+    message="Bohot ghabrahat ho rahi hai", 
+    language="hi-IN"
+)
 ```
 
-## Coding Conventions & Standards
+**Key methods**: `process_cultural_conversation()`, `detect_crisis_patterns()`, `generate_family_education()`
 
-### Python Backend Standards
+### Language Detection Pattern
 
-- **Type hints**: Mandatory for all function signatures
-- **Async patterns**: All service methods use async/await for scalability
-- **Error handling**: 3-tier fallback system (RAG → basic → emergency response)
-- **Logging**: Structured logging with contextual information
-- **Security**: JWT authentication, input validation, rate limiting
+Uses `langdetect` with consistent seeding. **Always handle LangDetectException**:
 
-### React Frontend Standards
+```python
+from langdetect import detect, LangDetectException, DetectorFactory
+DetectorFactory.seed = 0  # Consistent results
 
-- **TypeScript**: Strict typing for all components and props
-- **Component structure**: Functional components with hooks
-- **Styling**: Tailwind CSS with responsive design patterns
-- **State management**: React hooks for local state, Context for global state
+try:
+    language = detect(message)
+except LangDetectException:
+    language = "en"  # Fallback to English
+```
 
-### Cultural & Safety Standards
+### Pydantic Schema Conventions
 
-- **Cultural sensitivity**: Always consider Indian family dynamics and expressions
-- **Crisis safety**: Prioritize user safety, escalate to Tele MANAS (14416) when needed
-- **Privacy protection**: Anonymous tracking, no PII storage
-- **Accessibility**: Voice interaction for users with different literacy levels
+All API models in `app/models/schemas.py` use **strict typing and validation**:
 
-## Environment Variables & Configuration
+```python
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=1024)
+    language: LanguageCode = Field(default=LanguageCode.ENGLISH_US)
+    cultural_context: Dict[str, str] = Field(default_factory=dict)
+```
 
-### Required Environment Variables
+**Use Enums for fixed values** like `LanguageCode` instead of raw strings.
+
+## Critical Developer Workflows
+
+### Environment Setup (MUST DO FIRST)
 
 ```bash
-# GCP Authentication and Project
-GOOGLE_APPLICATION_CREDENTIALS="secrets/secrets.json"
-GOOGLE_PROJECT_ID="your-project-id"
+# 1. Set up GCP credentials - actual filename in secrets/
+export GOOGLE_APPLICATION_CREDENTIALS="secrets/google-credentials.json"
 
-# Language and Regional Settings
-SUPPORTED_LANGUAGES=["en-US", "hi-IN", "ta-IN", "te-IN"]
-DEFAULT_LANGUAGE="en-US"
-CULTURAL_REGIONS=["pan_india", "north", "south", "east", "west"]
+# 2. Install Python dependencies
+pip install -r requirements.txt
 
-# Database Configuration
-FIRESTORE_DATABASE="mitra-production"
+# 3. Run backend (FastAPI auto-reloads)
+uvicorn app.main:app --reload  # localhost:8000
 
-# Security Settings
-JWT_SECRET_KEY="your-secret-key"
-SESSION_TIMEOUT_MINUTES=60
-
-# Crisis Intervention
-TELE_MANAS_PHONE="14416"
-TELE_MANAS_ALT_PHONE="1800-891-4416"
+# 4. Run frontend in separate terminal  
+cd frontend && npm install && npm run dev  # localhost:5173
 ```
 
-**Security Note**: Never commit `secrets/secrets.json`, API keys, or JWT secrets to git.
+### Testing Workflow
 
-## Database Models & Data Flow
+**Different test types require different setup**:
 
-### Core Data Models (`app/models/db_models.py`)
+```bash
+# Unit tests (no GCP required) - fastest
+python -m pytest -qvs -m "not integration" 
 
-- **AnonymousUser**: Privacy-first user tracking with cultural preferences
-- **Conversation**: Chat history with emotion analysis, crisis scores, RAG sources
-- **CrisisAlert**: Safety alerts with escalation tracking and intervention logs
-- **PeerCircle**: Anonymous peer support groups with cultural matching
+# Integration tests (need real GCP) - for service validation
+python -m pytest -qvs -m integration
 
-### Request/Response Schemas (`app/models/schemas.py`)
+# Specific service testing
+python -m pytest -qvs tests/test_gemini_ai.py
+```
 
-- **ChatRequest**/**ChatResponse**: Main conversation API with cultural context
-- **VoicePipelineRequest**/**VoicePipelineResponse**: Complete voice processing
-- **CrisisDetectionRequest**/**CrisisDetectionResponse**: Risk assessment API
-- **FamilyEducationRequest**/**FamilyEducationResponse**: Family guidance generation
+### API Testing Pattern
 
-## Cultural Intelligence & Mental Health Focus
+The app uses `/api/v1` prefix for all endpoints:
 
-### This is NOT a generic chatbot - MITRA is specifically designed for:
+```bash
+# Test chat with cultural context
+curl -X POST http://localhost:8000/api/v1/input/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Mann nahi lag raha padhai mein"}'
 
-1. **Indian Youth Mental Health**
+# Crisis detection
+curl -X POST http://localhost:8000/api/v1/crisis/detect \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Sab kuch khatam ho gaya hai"}'
+```
 
-   - Understands cultural expressions: "ghabrahat", "mann nahi lagta", "pareshaan"
-   - Respects family hierarchy while supporting individual wellbeing
-   - Addresses unique pressures: academic competition, arranged marriage, career expectations
+## Cultural Intelligence & Mental Health Patterns
 
-2. **Crisis Intervention with Cultural Context**
+### Understanding the Domain Context
 
-   - Recognizes Indian cultural expressions of distress
-   - Immediate escalation to Tele MANAS (14416) for high-risk scenarios
-   - Family-sensitive crisis communication strategies
+**This is NOT a generic chatbot** - MITRA specializes in:
 
-3. **Multilingual & Culturally-Aware Responses**
+1. **Indian Cultural Expressions**: "ghabrahat" (anxiety), "mann nahi lagta" (not feeling like it), "pareshaan" (troubled)
+2. **Crisis Patterns**: Multi-level risk assessment with automatic Tele MANAS (14416) escalation  
+3. **Family Dynamics**: Respects traditional values while supporting individual mental health
+4. **Language Mixing**: Hindi-English code-switching in conversations
 
-   - Language detection and culturally-appropriate response generation
-   - Voice interaction with regional accent support
-   - Family education respecting traditional values
+### Crisis Detection Logic
 
-4. **Privacy-First Mental Health Platform**
-   - Anonymous user tracking with Firestore
-   - Encrypted sensitive conversations
-   - GDPR-compliant data handling
+**Every AI response includes crisis scoring**. Pattern from `ChatResponse` schema:
 
-## Testing Strategy & Quality Assurance
+```python
+class ChatResponse(BaseModel):
+    response: str
+    crisis_score: float = 0.0  # 0-1 scale, >0.7 triggers escalation
+    suggested_actions: List[str] = Field(default_factory=list)
+```
 
-### Test Categories
+**Safety-first approach**: When in doubt, escalate to professional resources.
 
-- **Unit Tests**: Individual service testing with mocked dependencies
-- **Integration Tests**: Full pipeline testing with real audio and cultural inputs
-- **Cultural Tests**: Verify appropriate handling of Hindi expressions and cultural contexts
-- **Crisis Safety Tests**: Ensure proper escalation for high-risk scenarios
-- **Performance Tests**: Voice processing latency and RAG response times
+### RAG Knowledge Base Structure
 
-### Test Data
+The `rag_data/mitra_knowledge_base.jsonl` contains 600+ culturally-curated resources. RAG responses should **always include sources**:
 
-- **Audio samples**: `tests/audio/` contains multilingual test files
-- **Cultural inputs**: Test cases with Hindi expressions and cultural contexts
-- **Crisis scenarios**: Graduated risk levels for safety testing
+```python
+class ChatResponse(BaseModel):
+    rag_sources: List[str] = Field(default_factory=list)  # Track knowledge sources
+    cultural_adaptations: Dict[str, str] = Field(default_factory=dict)
+```
 
-## Deployment & Production Considerations
+### Voice Processing Pipeline
 
-### Target Infrastructure
+Complete audio → text → AI → audio pipeline for accessibility:
 
-- **Backend**: Google Cloud Run (serverless FastAPI)
-- **Frontend**: Vercel or Netlify for React deployment
-- **Database**: Firestore with multi-region replication
-- **Monitoring**: Google Cloud Monitoring + custom analytics
+1. **Speech-to-Text**: Supports Hindi, English, Tamil, Telugu
+2. **Cultural Context**: Maintains meaning across language detection  
+3. **Text-to-Speech**: Generates culturally-appropriate voice responses
 
-### Scalability Design
+## Key API Endpoints & Routing Patterns
 
-- **Concurrent users**: 10,000+ simultaneous conversations
-- **Geographic**: Pan-India deployment with regional optimization
-- **Languages**: Horizontal scaling for additional Indian languages
-- **Cost optimization**: RAG response caching, efficient token usage
+**All endpoints use `/api/v1` prefix**. Routes organized by domain in `app/routes/`:
 
-## Key Business Logic & Safety Rules
+- **`/api/v1/input/chat`**: Main RAG-enhanced conversation endpoint
+- **`/api/v1/crisis/detect`**: Crisis pattern detection and risk scoring
+- **`/api/v1/voice/*`**: Complete speech processing pipeline  
+- **`/api/v1/auth/*`**: Google OAuth + JWT session management
 
-1. **Safety Above All**: Any crisis indicators trigger immediate professional resource recommendations
-2. **Cultural Respect**: Honor Indian family values while supporting individual mental health needs
-3. **Privacy Protection**: Anonymous conversation tracking, no personal identification storage
-4. **Accessibility First**: Voice interaction for users with varying literacy levels
-5. **Family Inclusion**: Education and communication tools for generational mental health awareness
-6. **Professional Integration**: Seamless handoff to Tele MANAS and local mental health services
+### CORS Configuration Pattern
 
-## Development Workflow & Contribution Guidelines
+Frontend-backend communication requires specific CORS setup in `main.py`:
 
-### Code Review Standards
+```python
+# CORS for React dev server
+origins = [
+    "http://localhost:5173",   # Vite React dev
+    "http://127.0.0.1:5173",   # Alternative localhost
+]
 
-- All cultural content reviewed for sensitivity and accuracy
-- Crisis detection logic requires safety team approval
-- Performance benchmarks for voice processing and RAG response times
-- Security review for authentication and data handling changes
+app.add_middleware(CORSMiddleware, allow_origins=origins, ...)
+```
 
-### Feature Development Process
+## Error Handling & Safety Patterns
 
-1. **Cultural Review**: New features assessed for cultural appropriateness
-2. **Safety Testing**: Crisis intervention features tested with mental health professionals
-3. **Performance Validation**: Voice and AI response latency within acceptable limits
-4. **Privacy Audit**: Data handling compliance with privacy-first principles
+### 3-Tier Fallback System
 
-**Never give only code give some explanation on what you have done and why have you done**
+**Every AI interaction must handle failures gracefully**:
+
+1. **RAG Response**: Try knowledge base retrieval first
+2. **Basic AI**: Fall back to general Gemini without RAG  
+3. **Emergency**: Static crisis resources and Tele MANAS contact
+
+### Crisis Safety Requirements
+
+**Never ignore crisis indicators**. Always include safety resources:
+
+- Immediate escalation for crisis_score > 0.7
+- Include Tele MANAS (14416) in all crisis responses
+- Log all crisis detections for follow-up
+
+## Configuration & Secrets Management
+
+### Critical Files & Environment
+
+**Actual filename**: `secrets/google-credentials.json` (not `secrets.json` as mentioned elsewhere)
+
+```bash
+# Required environment variables  
+export GOOGLE_APPLICATION_CREDENTIALS="secrets/google-credentials.json"
+GOOGLE_PROJECT_ID="auto-loaded-from-credentials"
+CORPUS_NAME="projects/.../ragCorpora/..."  # RAG corpus identifier
+SECRET_KEY="jwt-secret"
+```
+
+**Config pattern**: `app/config.py` loads both environment variables AND JSON credentials automatically:
+
+```python
+# Custom config loading - don't modify this pattern
+def _load_google_config(self):
+    cred_path = Path(self.GOOGLE_CREDENTIALS_FILE)  
+    # Auto-extracts project_id and client_email from JSON
+```
+
+### Database Models & API Schemas
+
+**Firestore models** (`app/models/db_models.py`): Document-based storage for users, conversations, crisis alerts
+
+**API schemas** (`app/models/schemas.py`): Pydantic models with **strict validation**:
+
+```python
+# Use Field validation for all user inputs
+message: str = Field(..., min_length=1, max_length=1024)
+language: LanguageCode = Field(default=LanguageCode.ENGLISH_US)
+```
+
+**Always use Enums** for fixed values like language codes, never raw strings.
+
+## Implementation Status & Key Files
+
+### ✅ Core Features Implemented
+
+- **Chat System**: `app/routes/input.py` - RAG-enhanced conversations
+- **Crisis Detection**: `app/routes/crisis.py` + `app/services/crisis_service.py`  
+- **Voice Pipeline**: `app/routes/voice.py` + `app/services/google_speech.py`
+- **Authentication**: `app/routes/auth.py` with Google OAuth + JWT
+- **AI Integration**: `app/services/gemini_ai.py` with Vertex AI RAG
+
+### 🚧 Partially Implemented  
+
+- **Family/Peer routes**: Route files exist but service logic incomplete
+- **Analytics endpoints**: Health checks exist but comprehensive metrics pending
+
+### Essential Dependencies
+
+```python
+# Core AI/ML stack
+google-cloud-aiplatform==1.111.0  # Vertex AI integration
+vertexai                          # Gemini model access  
+langdetect==1.0.9                 # Language detection
+
+# Backend framework
+fastapi                           # Async API framework
+pydantic-settings                 # Configuration management
+
+# Frontend (in frontend/package.json)
+react: "^19.1.1"                 # React 19 with TypeScript
+vite: "^7.1.2"                   # Build tool
+tailwindcss: "^4.1.12"          # Styling
+```
+
+## Development Guidelines
+
+### Code Quality Standards
+
+- **Type hints mandatory** on all function signatures
+- **Async/await patterns** for all service methods  
+- **Pydantic validation** for all API inputs/outputs
+- **Error handling** with 3-tier fallbacks (RAG → basic AI → emergency)
+
+### Cultural & Safety Requirements
+
+- **Crisis safety**: Always escalate high-risk scenarios to Tele MANAS (14416)
+- **Cultural sensitivity**: Test Hindi expressions and family dynamics
+- **Privacy first**: Anonymous tracking, no PII storage
+- **Accessibility**: Voice support for varying literacy levels
+
+**Always provide context and explanation with code changes, never just raw code blocks.**
