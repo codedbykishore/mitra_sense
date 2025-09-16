@@ -8,7 +8,7 @@ from fastapi import (
     HTTPException,
     Request,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from authlib.integrations.starlette_client import OAuth
 from pydantic import BaseModel, EmailStr
 from datetime import timedelta
@@ -88,6 +88,24 @@ async def google_login(request: Request):
     redirect_uri = settings.REDIRECT_URI
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
+@router.get("/me")
+async def get_current_user(request: Request):
+    user = request.session.get("user")
+
+    if not user:
+        return JSONResponse(
+            {"authenticated": False, "user": None},
+            status_code=401
+        )
+
+    return {
+        "authenticated": True,
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "picture": user.get("picture"),
+        "plan": user.get("plan", "Free")
+    }
+
 
 @router.get("/auth/google/callback")
 async def auth_callback(request: Request):
@@ -107,7 +125,9 @@ async def auth_callback(request: Request):
         await fs.create_user(user)
 
     request.session["user"] = dict(user_info)
-    return JSONResponse({"message": "Login successful", "user": user_info})
+    response = RedirectResponse(url="http://localhost:3000/")
+    # return JSONResponse({"message": "Login successful", "user": user_info})
+    return response
 
 
 @router.get("/logout")

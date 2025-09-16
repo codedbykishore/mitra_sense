@@ -1,9 +1,10 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 import os
+from fastapi.responses import JSONResponse
 
 # Configure logging
 logging.basicConfig(
@@ -27,7 +28,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # or ["*"] to allow all origins (less secure)
+    allow_origins=["*"],  # or ["*"] to allow all origins (less secure)
     allow_credentials=True,
     allow_methods=["*"],  # allow all HTTP methods (POST, GET, etc.)
     allow_headers=["*"],  # allow all headers
@@ -39,6 +40,7 @@ from app.routes.voice import router as voice_router
 from app.routes.auth import router as auth_router
 from app.services.gemini_ai import GeminiService
 from app.routes.crisis import router as crisis_router
+
 app.include_router(crisis_router, prefix="/api/v1/crisis", tags=["crisis"])
 app.include_router(input_router, prefix="/api/v1/input")
 app.include_router(voice_router, prefix="/api/v1")
@@ -52,3 +54,9 @@ gemini_service = GeminiService(rag_corpus_name=rag_corpus_name)
 def root():
     logger.info("Root endpoint accessed.")
     return {"message": "root end point"}
+
+@app.middleware("http")
+async def block_well_known(request: Request, call_next):
+    if request.url.path.startswith("/.well-known"):
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+    return await call_next(request)
