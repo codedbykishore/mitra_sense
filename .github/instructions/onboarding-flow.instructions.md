@@ -1,6 +1,4 @@
----
-applyTo: '**'
----
+
 
 # Copilot Task Prompt (Frontend - Next.js)
 
