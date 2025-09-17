@@ -1,23 +1,25 @@
 # MITRA - Mental Health Intelligence Through Responsive AI
 
-This is a **full-stack Python FastAPI + React TypeScript application** for culturally-aware mental health support for Indian youth, using Google Cloud Vertex AI RAG Engine, Gemini 2.0 Flash, and Firestore.
+This is a **full-stack Python FastAPI + Next.js React TypeScript application** for culturally-aware mental health support for Indian youth, using Google Cloud Vertex AI RAG Engine, Gemini 2.0 Flash, and Firestore.
 
 ## Essential Development Patterns
 
 ### Configuration & Environment Setup
 
-**Critical**: The `secrets/google-credentials.json` file (NOT `secrets.json`) contains GCP service account credentials. The `app/config.py` uses a custom pattern to load both env vars and JSON credentials:
+**Critical**: The `secrets/secrets.json` file contains GCP service account credentials. The `app/config.py` uses a custom pattern to load both env vars and JSON credentials:
 
-```python
+```bash
 # Always export this before running anything
-export GOOGLE_APPLICATION_CREDENTIALS="secrets/google-credentials.json" 
+export GOOGLE_APPLICATION_CREDENTIALS="secrets/secrets.json" 
 
 # Run backend
 uvicorn app.main:app --reload  # FastAPI at localhost:8000
 
-# Run frontend
-cd frontend && npm run dev     # Vite at localhost:5173
+# Run frontend  
+cd frontend && npm run dev     # Next.js at localhost:3000
 ```
+
+**Frontend Architecture**: Next.js 14+ with App Router, not Vite. API calls proxied via `next.config.mjs` rewrites to backend.
 
 ### Service Layer Architecture
 
@@ -32,6 +34,37 @@ def process_message(self, message: str) -> Dict:
 ```
 
 **3-tier fallback system**: RAG → basic AI → emergency response. Every AI interaction must have fallback logic.
+
+### Frontend Hydration Patterns
+
+**Critical for Next.js SSR**: Use `dynamic()` imports with `ssr: false` for client-only components:
+
+```typescript
+// Components using browser APIs (MediaRecorder, localStorage, etc.)
+const VoiceCompanion = dynamic(() => import('./voice/VoiceCompanion'), {
+  ssr: false,
+  loading: () => <LoadingSpinner />
+});
+
+// Add suppressHydrationWarning for elements modified by extensions/themes
+<html suppressHydrationWarning={true}>
+<body suppressHydrationWarning={true}>
+```
+
+### Voice Processing Architecture
+
+**Complete file-based pipeline** (`frontend/components/voice/`):
+
+```typescript
+// File upload workflow: Record → Upload → AI Process → TTS → Playback
+const response = await fetch('/api/v1/voice/pipeline/audio', {
+  method: 'POST',
+  body: formData  // Contains audio file + metadata
+});
+
+// Expected response structure matches VoicePipelineResponse interface
+const result = await response.json(); // transcription, emotion, aiResponse, ttsAudio
+```
 
 ### Testing Strategy
 
@@ -49,24 +82,6 @@ python -m pytest -qvs -m "not integration"
 ```
 
 **Critical**: Integration tests in files like `test_*_real.py` require actual GCP setup. Unit tests mock all external dependencies.
-
-### API Route Patterns
-
-Routes are organized by domain in `app/routes/`. Each router follows this pattern:
-
-```python
-# app/routes/domain.py
-from fastapi import APIRouter, Depends
-from app.models.schemas import DomainRequest, DomainResponse
-
-router = APIRouter()
-
-@router.post("/endpoint", response_model=DomainResponse)
-async def endpoint_handler(request: DomainRequest):
-    # Always async, always use Pydantic models
-```
-
-Register in `app/main.py`: `app.include_router(router, prefix="/api/v1/domain")`
 
 ## Core Service Dependencies & Integration Points
 
@@ -86,6 +101,23 @@ response = await gemini_service.process_cultural_conversation(
 ```
 
 **Key methods**: `process_cultural_conversation()`, `detect_crisis_patterns()`, `generate_family_education()`
+
+### Voice Pipeline Integration (`app/routes/voice.py`)
+
+**Complete audio processing workflow**:
+
+```python
+# Single endpoint handles entire voice pipeline
+@router.post("/voice/pipeline/audio")
+async def voice_pipeline_json(audio: UploadFile, ...):
+    # STT → Emotion Analysis → Gemini AI → TTS → JSON Response
+    return {
+        "transcription": {...},
+        "emotion": {...}, 
+        "aiResponse": {...},
+        "ttsAudio": {"url": "data:audio/mpeg;base64,..."} # Data URL format
+    }
+```
 
 ### Language Detection Pattern
 
@@ -120,7 +152,7 @@ class ChatRequest(BaseModel):
 
 ```bash
 # 1. Set up GCP credentials - actual filename in secrets/
-export GOOGLE_APPLICATION_CREDENTIALS="secrets/google-credentials.json"
+export GOOGLE_APPLICATION_CREDENTIALS="secrets/secrets.json"
 
 # 2. Install Python dependencies
 pip install -r requirements.txt
@@ -129,23 +161,23 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload  # localhost:8000
 
 # 4. Run frontend in separate terminal  
-cd frontend && npm install && npm run dev  # localhost:5173
+cd frontend && npm install && npm run dev  # localhost:3000
 ```
 
-### Testing Workflow
+### Frontend Development Patterns
 
-**Different test types require different setup**:
+**Next.js App Router structure** in `frontend/app/`:
 
-```bash
-# Unit tests (no GCP required) - fastest
-python -m pytest -qvs -m "not integration" 
-
-# Integration tests (need real GCP) - for service validation
-python -m pytest -qvs -m integration
-
-# Specific service testing
-python -m pytest -qvs tests/test_gemini_ai.py
+```typescript
+// layout.tsx - Root layout with Analytics and theme handling
+// page.tsx - Main page with dynamic imports for hydration safety
+// globals.css - Tailwind CSS setup
 ```
+
+**Component patterns** (`frontend/components/`):
+- `AIAssistantUI.jsx` - Main app container with client-side state management
+- `ChatPane.jsx` - Chat interface with integrated VoiceCompanion
+- `voice/` - Complete voice interaction system
 
 ### API Testing Pattern
 
@@ -157,10 +189,10 @@ curl -X POST http://localhost:8000/api/v1/input/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Mann nahi lag raha padhai mein"}'
 
-# Crisis detection
-curl -X POST http://localhost:8000/api/v1/crisis/detect \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Sab kuch khatam ho gaya hai"}'
+# Voice pipeline testing
+curl -X POST http://localhost:8000/api/v1/voice/pipeline/audio \
+  -F "audio=@test.webm" \
+  -F "duration=5.0"
 ```
 
 ## Cultural Intelligence & Mental Health Patterns
@@ -204,6 +236,7 @@ Complete audio → text → AI → audio pipeline for accessibility:
 1. **Speech-to-Text**: Supports Hindi, English, Tamil, Telugu
 2. **Cultural Context**: Maintains meaning across language detection  
 3. **Text-to-Speech**: Generates culturally-appropriate voice responses
+4. **File-based Workflow**: MediaRecorder → FormData → Backend → Data URL TTS
 
 ## Key API Endpoints & Routing Patterns
 
@@ -211,21 +244,22 @@ Complete audio → text → AI → audio pipeline for accessibility:
 
 - **`/api/v1/input/chat`**: Main RAG-enhanced conversation endpoint
 - **`/api/v1/crisis/detect`**: Crisis pattern detection and risk scoring
-- **`/api/v1/voice/*`**: Complete speech processing pipeline  
+- **`/api/v1/voice/pipeline/audio`**: Complete voice processing pipeline (NEW)
 - **`/api/v1/auth/*`**: Google OAuth + JWT session management
 
-### CORS Configuration Pattern
+### Frontend-Backend Communication
 
-Frontend-backend communication requires specific CORS setup in `main.py`:
+**Next.js proxy setup** in `next.config.mjs`:
 
-```python
-# CORS for React dev server
-origins = [
-    "http://localhost:5173",   # Vite React dev
-    "http://127.0.0.1:5173",   # Alternative localhost
-]
-
-app.add_middleware(CORSMiddleware, allow_origins=origins, ...)
+```javascript
+async rewrites() {
+  return [
+    {
+      source: '/api/v1/:path*',
+      destination: 'http://localhost:8000/api/v1/:path*',
+    },
+  ];
+}
 ```
 
 ## Error Handling & Safety Patterns
@@ -246,57 +280,16 @@ app.add_middleware(CORSMiddleware, allow_origins=origins, ...)
 - Include Tele MANAS (14416) in all crisis responses
 - Log all crisis detections for follow-up
 
-## Configuration & Secrets Management
-
-### Critical Files & Environment
-
-**Actual filename**: `secrets/google-credentials.json` (not `secrets.json` as mentioned elsewhere)
-
-```bash
-# Required environment variables  
-export GOOGLE_APPLICATION_CREDENTIALS="secrets/google-credentials.json"
-GOOGLE_PROJECT_ID="auto-loaded-from-credentials"
-CORPUS_NAME="projects/.../ragCorpora/..."  # RAG corpus identifier
-SECRET_KEY="jwt-secret"
-```
-
-**Config pattern**: `app/config.py` loads both environment variables AND JSON credentials automatically:
-
-```python
-# Custom config loading - don't modify this pattern
-def _load_google_config(self):
-    cred_path = Path(self.GOOGLE_CREDENTIALS_FILE)  
-    # Auto-extracts project_id and client_email from JSON
-```
-
-### Database Models & API Schemas
-
-**Firestore models** (`app/models/db_models.py`): Document-based storage for users, conversations, crisis alerts
-
-**API schemas** (`app/models/schemas.py`): Pydantic models with **strict validation**:
-
-```python
-# Use Field validation for all user inputs
-message: str = Field(..., min_length=1, max_length=1024)
-language: LanguageCode = Field(default=LanguageCode.ENGLISH_US)
-```
-
-**Always use Enums** for fixed values like language codes, never raw strings.
-
 ## Implementation Status & Key Files
 
 ### ✅ Core Features Implemented
 
 - **Chat System**: `app/routes/input.py` - RAG-enhanced conversations
 - **Crisis Detection**: `app/routes/crisis.py` + `app/services/crisis_service.py`  
-- **Voice Pipeline**: `app/routes/voice.py` + `app/services/google_speech.py`
+- **Voice Pipeline**: `app/routes/voice.py` + `app/services/google_speech.py` (COMPLETE)
+- **Voice Frontend**: `frontend/components/voice/VoiceCompanion.tsx` (COMPLETE)
 - **Authentication**: `app/routes/auth.py` with Google OAuth + JWT
 - **AI Integration**: `app/services/gemini_ai.py` with Vertex AI RAG
-
-### 🚧 Partially Implemented  
-
-- **Family/Peer routes**: Route files exist but service logic incomplete
-- **Analytics endpoints**: Health checks exist but comprehensive metrics pending
 
 ### Essential Dependencies
 
@@ -311,9 +304,9 @@ fastapi                           # Async API framework
 pydantic-settings                 # Configuration management
 
 # Frontend (in frontend/package.json)
-react: "^19.1.1"                 # React 19 with TypeScript
-vite: "^7.1.2"                   # Build tool
-tailwindcss: "^4.1.12"          # Styling
+"next": "14.2.32"                # Next.js with App Router
+"react": "^19.1.1"               # React 19 with TypeScript
+"tailwindcss": "^4.1.12"        # Styling
 ```
 
 ## Development Guidelines
@@ -324,6 +317,7 @@ tailwindcss: "^4.1.12"          # Styling
 - **Async/await patterns** for all service methods  
 - **Pydantic validation** for all API inputs/outputs
 - **Error handling** with 3-tier fallbacks (RAG → basic AI → emergency)
+- **Hydration safety** for all client-side components in Next.js
 
 ### Cultural & Safety Requirements
 
