@@ -29,13 +29,42 @@ class SpeechService:
             logger.info("Google Speech services initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Google Speech services: {e}")
-            raise  # NEW: Language Detection (Missed Function)
+            raise
 
-    async def detect_language(self, audio_data: bytes, sample_rate: int = 16000) -> str:
+    def _detect_audio_format(self, audio_data: bytes) -> Tuple[speech.RecognitionConfig.AudioEncoding, int]:
+        """Detect audio format from header and return appropriate encoding and sample rate."""
+        # Check for common audio format headers
+        if audio_data.startswith(b'RIFF'):
+            # WAV file
+            logger.info("Detected WAV format")
+            return speech.RecognitionConfig.AudioEncoding.LINEAR16, 16000
+        elif audio_data.startswith(b'\x1a\x45\xdf\xa3'):
+            # WebM/Matroska container (common from browsers)
+            logger.info("Detected WebM format")
+            return speech.RecognitionConfig.AudioEncoding.WEBM_OPUS, 48000
+        elif audio_data.startswith(b'OggS'):
+            # Ogg container
+            logger.info("Detected OGG format") 
+            return speech.RecognitionConfig.AudioEncoding.OGG_OPUS, 48000
+        elif audio_data.startswith(b'fLaC'):
+            # FLAC format
+            logger.info("Detected FLAC format")
+            return speech.RecognitionConfig.AudioEncoding.FLAC, 16000
+        else:
+            # Default to LINEAR16 for unknown formats
+            logger.warning("Unknown audio format, defaulting to LINEAR16")
+            return speech.RecognitionConfig.AudioEncoding.LINEAR16, 16000
+
+    # NEW: Language Detection (Missed Function)
+
+    async def detect_language(self, audio_data: bytes, sample_rate: Optional[int] = None) -> str:
         """Automatically detect spoken language from audio."""
+        encoding, detected_sample_rate = self._detect_audio_format(audio_data)
+        actual_sample_rate = sample_rate or detected_sample_rate
+        
         config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=sample_rate,
+            encoding=encoding,
+            sample_rate_hertz=actual_sample_rate,
             language_code=self.supported_languages[0],  # Primary language
             alternative_language_codes=self.supported_languages[
                 1:
@@ -66,17 +95,20 @@ class SpeechService:
         self,
         audio_data: bytes,
         language: Optional[str] = None,
-        sample_rate: int = 16000,
+        sample_rate: Optional[int] = None,
     ) -> Tuple[str, float]:
         """Convert multilingual voice to text with confidence score."""
+        encoding, detected_sample_rate = self._detect_audio_format(audio_data)
+        actual_sample_rate = sample_rate or detected_sample_rate
+        
         if not language:
             language = await self.detect_language(
-                audio_data, sample_rate
+                audio_data, actual_sample_rate
             )  # Auto-detect if not provided
 
         config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=sample_rate,
+            encoding=encoding,
+            sample_rate_hertz=actual_sample_rate,
             language_code=language,
             enable_automatic_punctuation=True,
             model="latest_long",  # For longer conversations

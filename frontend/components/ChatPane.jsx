@@ -1,10 +1,25 @@
 "use client"
 
-import { useState, forwardRef, useImperativeHandle, useRef } from "react"
-import { Pencil, RefreshCw, Check, X, Square } from "lucide-react"
+import { useState, forwardRef, useImperativeHandle, useRef, useCallback, useEffect } from "react"
+import { Pencil, RefreshCw, Check, X, Square, AlertTriangle, Phone, Mic, Volume2, Heart } from "lucide-react"
 import Message from "./Message"
 import Composer from "./Composer"
+import dynamic from 'next/dynamic'
+import { useUser } from "../hooks/useUser"
 import { cls } from "./utils"
+
+// Dynamically import VoiceCompanion with no SSR to prevent hydration issues
+const VoiceCompanion = dynamic(() => import("./voice/VoiceCompanion"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center p-4">
+      <div className="text-center">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></div>
+        <p className="mt-2 text-sm text-zinc-600">Loading voice...</p>
+      </div>
+    </div>
+  )
+})
 
 function ThinkingMessage({ onPause }) {
   return (
@@ -34,7 +49,153 @@ const ChatPane = forwardRef(function ChatPane(
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState("")
   const [busy, setBusy] = useState(false)
+  const [isVoiceMode, setIsVoiceMode] = useState(false)
+  const [crisisAlert, setCrisisAlert] = useState(null)
+  const [voiceError, setVoiceError] = useState(null)
   const composerRef = useRef(null)
+  const voiceAnnouncementRef = useRef(null)
+  const { user } = useUser()
+
+  // Cleanup voice mode on unmount
+  useEffect(() => {
+    return () => {
+      // Reset voice mode and clear any pending states when component unmounts
+      setIsVoiceMode(false)
+      setCrisisAlert(null)
+      setVoiceError(null)
+    }
+  }, [])
+
+  // Get user's auth token (in real implementation, this would come from authentication)
+  const userAuthToken = user?.authToken || 'demo-token'
+
+  // User's cultural preferences (could come from user profile)
+  const userCulturalPreferences = {
+    language: user?.preferredLanguage || 'en-US',
+    familyContext: user?.familyContext || 'individual',
+    greetingStyle: user?.greetingStyle || 'informal',
+  }
+
+  // Handle voice mode toggle
+  const handleVoiceModeToggle = useCallback(() => {
+    setIsVoiceMode(prev => {
+      const newVoiceMode = !prev
+
+      // Clear any existing errors when toggling voice mode
+      if (newVoiceMode) {
+        setVoiceError(null)
+        // Announce voice mode activation for screen readers
+        announceToScreenReader('Voice mode activated. You can now record voice messages.')
+      } else {
+        // Announce voice mode deactivation
+        announceToScreenReader('Voice mode deactivated. Switched back to text input.')
+      }
+
+      return newVoiceMode
+    })
+  }, [])
+
+  // Announce messages to screen readers
+  const announceToScreenReader = useCallback((message) => {
+    if (voiceAnnouncementRef.current) {
+      voiceAnnouncementRef.current.textContent = message
+      // Clear after announcement
+      setTimeout(() => {
+        if (voiceAnnouncementRef.current) {
+          voiceAnnouncementRef.current.textContent = ''
+        }
+      }, 1000)
+    }
+  }, [])
+
+  // Handle voice errors (microphone, network, playback issues)
+  const handleVoiceError = useCallback((errorType, message) => {
+    console.error('Voice error:', { errorType, message })
+
+    setVoiceError({
+      type: errorType,
+      message,
+      timestamp: new Date(),
+    })
+
+    // Announce error to screen readers
+    announceToScreenReader(`Voice error: ${message}`)
+
+    // Auto-clear error after 10 seconds
+    setTimeout(() => {
+      setVoiceError(null)
+    }, 10000)
+
+    // For critical errors, switch back to text mode
+    if (errorType === 'microphone-permission' || errorType === 'network-error') {
+      setIsVoiceMode(false)
+      announceToScreenReader('Switched back to text input due to voice error.')
+    }
+  }, [announceToScreenReader])
+
+  // Handle emergency/crisis detection from voice companion
+  const handleEmergency = useCallback((crisisScore, suggestedActions) => {
+    console.log('🚨 Crisis detected:', { crisisScore, suggestedActions })
+
+    // Set crisis alert for UI display
+    setCrisisAlert({
+      score: crisisScore,
+      actions: suggestedActions,
+      timestamp: new Date(),
+    })
+
+    // Announce crisis to screen readers
+    announceToScreenReader(`Crisis level detected. Crisis score: ${Math.round(crisisScore * 100)}%. Immediate support is available.`)
+
+    // Auto-clear crisis alert after 30 seconds unless user acknowledges
+    setTimeout(() => {
+      setCrisisAlert(null)
+    }, 30000)
+
+    // In a real implementation, this would:
+    // - Log the crisis incident
+    // - Notify emergency contacts
+    // - Show crisis support resources
+    // - Potentially escalate to mental health professionals
+  }, [announceToScreenReader])
+
+  // Add voice interaction to chat history
+  const addToChatHistory = useCallback((transcription, response, emotion) => {
+    console.log('Voice interaction completed:', { transcription, response, emotion })
+
+    // Announce completion to screen readers
+    announceToScreenReader(`Voice interaction completed. Message transcribed and response received.`)
+
+    // Create voice interaction messages for chat history
+    const userMessage = {
+      id: `voice-user-${Date.now()}`,
+      role: 'user',
+      content: transcription,
+      type: 'voice',
+      emotion: emotion?.primaryEmotion,
+      timestamp: new Date(),
+    }
+
+    const assistantMessage = {
+      id: `voice-assistant-${Date.now()}`,
+      role: 'assistant',
+      content: response,
+      type: 'voice',
+      emotion: emotion,
+      timestamp: new Date(),
+    }
+
+    // Add both messages to conversation
+    // Note: This is a simplified implementation
+    // In a real app, this would properly update the conversation state
+    if (conversation && conversation.messages) {
+      conversation.messages.push(userMessage, assistantMessage)
+    }
+
+    // Auto-switch back to text mode after voice interaction
+    setIsVoiceMode(false)
+    announceToScreenReader('Voice interaction completed. Switched back to text mode.')
+  }, [conversation, announceToScreenReader])
 
   useImperativeHandle(
     ref,
@@ -73,7 +234,138 @@ const ChatPane = forwardRef(function ChatPane(
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
+      {/* Screen reader announcements */}
+      <div
+        ref={voiceAnnouncementRef}
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      />
+
       <div className="h-4"></div>
+
+      {/* Crisis Alert Banner */}
+      {crisisAlert && (
+        <div
+          className="mx-4 mb-4 rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm dark:border-red-800 dark:bg-red-900/20"
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="flex items-start">
+            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" aria-hidden="true" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Crisis Level Detected ({Math.round(crisisAlert.score * 100)}%)
+              </h3>
+              <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                Immediate support is available. You are not alone.
+              </p>
+              {crisisAlert.actions.length > 0 && (
+                <ul className="mt-2 text-xs text-red-600 dark:text-red-400" aria-label="Suggested actions">
+                  {crisisAlert.actions.map((action, index) => (
+                    <li key={index}>• {action}</li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  onClick={() => window.open('tel:14416')}
+                  className="inline-flex items-center gap-1 rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label="Call Tele MANAS crisis helpline"
+                >
+                  <Phone className="h-3 w-3" aria-hidden="true" />
+                  Call Tele MANAS (14416)
+                </button>
+                <button
+                  onClick={() => setCrisisAlert(null)}
+                  className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200"
+                  aria-label="Acknowledge crisis alert"
+                >
+                  Acknowledge
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Voice Error Display */}
+      {voiceError && (
+        <div
+          className="mx-4 mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 shadow-sm dark:border-yellow-800 dark:bg-yellow-900/20"
+          role="alert"
+          aria-live="polite"
+        >
+          <div className="flex items-start">
+            <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 mr-3 flex-shrink-0" aria-hidden="true" />
+            <div className="flex-1">
+              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Voice Error: {voiceError.type}
+              </h3>
+              <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
+                {voiceError.message}
+              </p>
+              {voiceError.type === 'microphone-permission' && (
+                <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
+                  Please allow microphone access in your browser settings and try again.
+                </p>
+              )}
+              {voiceError.type === 'network-error' && (
+                <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
+                  Check your internet connection and try again.
+                </p>
+              )}
+              <div className="mt-2">
+                <button
+                  onClick={() => setVoiceError(null)}
+                  className="text-xs text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200 focus:outline-none focus:underline"
+                  aria-label="Dismiss voice error"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Voice Companion Integration */}
+      {isVoiceMode && (
+        <div
+          className="mx-4 mb-4 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20"
+          role="region"
+          aria-label="Voice interaction interface"
+        >
+          <div className="p-2 border-b border-blue-200 dark:border-blue-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mic className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  Voice Mode Active
+                </span>
+              </div>
+              <button
+                onClick={() => setIsVoiceMode(false)}
+                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                aria-label="Exit voice mode"
+              >
+                Exit Voice Mode
+              </button>
+            </div>
+          </div>
+          <VoiceCompanion
+            authToken={userAuthToken}
+            culturalContext={userCulturalPreferences}
+            chatPaneMode={true}
+            crisisThreshold={0.7}
+            onCrisisDetected={handleEmergency}
+            onInteractionComplete={addToChatHistory}
+            onError={handleVoiceError}
+            showAdvancedControls={false}
+            className="voice-chat-integration"
+          />
+        </div>
+      )}
 
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-8">
         {messages.length === 0 ? (
@@ -127,6 +419,42 @@ const ChatPane = forwardRef(function ChatPane(
                 ) : (
                   <Message role={m.role}>
                     <div className="whitespace-pre-wrap">{m.content}</div>
+
+                    {/* Voice interaction indicators */}
+                    {m.type === 'voice' && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                        {m.role === 'user' ? (
+                          <div className="flex items-center gap-1">
+                            <Mic className="h-3 w-3" />
+                            <span>Voice message</span>
+                            {m.emotion && (
+                              <span className="ml-2 rounded px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                                {m.emotion}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Volume2 className="h-3 w-3" />
+                            <span>Voice response</span>
+                            {m.emotion && (
+                              <div className="ml-2 flex items-center gap-1">
+                                <Heart className="h-3 w-3" />
+                                <span className="rounded px-1.5 py-0.5 bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300">
+                                  {m.emotion.primaryEmotion} ({Math.round(m.emotion.confidence * 100)}%)
+                                </span>
+                                {m.emotion.stressLevel >= 0.7 && (
+                                  <span className="rounded px-1.5 py-0.5 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
+                                    High stress
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {m.role === "user" && (
                       <div className="mt-1 flex gap-2 text-[11px] text-zinc-500">
                         <button className="inline-flex items-center gap-1 hover:underline" onClick={() => startEdit(m)}>
@@ -158,6 +486,8 @@ const ChatPane = forwardRef(function ChatPane(
           setBusy(false)
         }}
         busy={busy}
+        onVoiceModeToggle={handleVoiceModeToggle}
+        isVoiceMode={isVoiceMode}
       />
     </div>
   )
