@@ -134,9 +134,8 @@ export default function AIAssistantUI() {
   }, [sidebarOpen, conversations])
 
   useEffect(() => {
-    if (!selectedId && conversations.length > 0) {
-      createNewChat()
-    }
+    // Don't automatically create a chat - let users start fresh
+    // They can click "New Chat" when they're ready to begin
   }, [])
 
   const filtered = useMemo(() => {
@@ -171,7 +170,7 @@ export default function AIAssistantUI() {
       messageCount: 0,
       preview: "Say hello to start...",
       pinned: false,
-      folder: "Work Projects",
+      folder: "Mental Health",
       messages: [],
     }
     setConversations((prev) => [item, ...prev])
@@ -226,14 +225,58 @@ export default function AIAssistantUI() {
 
       const data = await res.json()
 
-      // Add assistant response
+      // Debug: Log the raw response to see what we're getting
+      console.log("Raw API response:", data)
+
+      // Extract clean text response - handle the stringified dict format
+      let responseText = ""
+
+      console.log("Response type:", typeof data.response)
+      console.log("Response content:", data.response)
+
+      if (typeof data.response === 'string') {
+        // The backend is returning a stringified dictionary like: {'response': 'actual text'}
+        // We need to extract just the actual text
+
+        if (data.response.startsWith("{'response':") || data.response.startsWith('{"response":')) {
+          // Extract the response text from the stringified dict using improved regex
+          const match = data.response.match(/['"]response['"]:\s*['"](.*)['"](?:\s*,|\s*})/)
+          if (match) {
+            responseText = match[1]
+              .replace(/\\n/g, '\n')      // Convert \n to actual newlines
+              .replace(/\\'/g, "'")       // Convert \' to '
+              .replace(/\\"/g, '"')       // Convert \" to "
+              .replace(/\\\\/g, '\\')     // Convert \\ to \
+          } else {
+            // Fallback: try JSON parsing
+            try {
+              let cleanResponse = data.response.replace(/'/g, '"') // Convert single quotes to double quotes
+              const parsed = JSON.parse(cleanResponse)
+              responseText = parsed.response || data.response
+            } catch (e) {
+              responseText = data.response
+            }
+          }
+        } else {
+          responseText = data.response
+        }
+      } else {
+        responseText = "I'm here to help. Please let me know what's on your mind."
+      }
+
+      // Format the response for better readability
+      responseText = responseText
+        .trim()
+        // Don't add extra line breaks - let the original formatting shine through
+        // Just clean up any excessive spacing
+        .replace(/\n\n\n+/g, '\n\n')     // Reduce triple+ newlines to double newlines      // Add assistant response
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== convId) return c
           const asstMsg = {
             id: Math.random().toString(36).slice(2),
             role: "assistant",
-            content: data.response,
+            content: responseText,
             createdAt: new Date().toISOString(),
           }
           const msgs = [...(c.messages || []), asstMsg]
@@ -242,7 +285,7 @@ export default function AIAssistantUI() {
             messages: msgs,
             updatedAt: new Date().toISOString(),
             messageCount: msgs.length,
-            preview: asstMsg.content.slice(0, 80),
+            preview: responseText.slice(0, 80),
           }
         }),
       )

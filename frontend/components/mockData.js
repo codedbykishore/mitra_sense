@@ -1,241 +1,142 @@
 import { makeId } from "./utils"
 
-export const INITIAL_CONVERSATIONS = [
-  {
-    id: "c1",
-    title: "Marketing plan for launch",
-    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    messageCount: 12,
-    preview: "Drafting a 4-week GTM plan with channels, KPIs, and budget...",
-    pinned: true,
-    folder: "Work Projects",
-    messages: [
-      {
-        id: makeId("m"),
-        role: "user",
-        content: "Draft a 4-week GTM plan.",
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: makeId("m"),
-        role: "assistant",
-        content: "Sure — phases, owners, risks, and KPIs coming up.",
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000 + 60000).toISOString(),
-      },
-    ],
-  },
-  {
-    id: "c2",
-    title: "Research: vector databases vs RAG",
-    updatedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-    messageCount: 22,
-    preview: "Compare pgvector, Milvus, and Weaviate. Cost + latency notes...",
-    pinned: false,
-    folder: "Code Reviews",
-    messages: [],
-  },
-  {
-    id: "c3",
-    title: "Trip checklist – Paris with family",
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    messageCount: 9,
-    preview: "Packing list, museum tickets, metro pass options, and cafés...",
-    pinned: false,
-    folder: "Personal",
-    messages: [],
-  },
-  {
-    id: "c4",
-    title: "Refactor prompt templates for support",
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    messageCount: 17,
-    preview: "Turn macros into reusable templates with variables and guardrails...",
-    pinned: true,
-    folder: "Work Projects",
-    messages: [],
-  },
-  {
-    id: "c5",
-    title: "Bug triage notes",
-    updatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    messageCount: 6,
-    preview: "Priorities: login rate limit, streaming flicker, retry policy...",
-    pinned: false,
-    folder: "Work Projects",
-    messages: [],
-  },
-  {
-    id: "c6",
-    title: "AI agent: inbox clean-up flow",
-    updatedAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-    messageCount: 31,
-    preview: "Classifier → summarize → bulk actions with undo and logs...",
-    pinned: false,
-    folder: "Work Projects",
-    messages: [],
-  },
-  {
-    id: "c7",
-    title: "Weekly review – personal goals",
-    updatedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    messageCount: 8,
-    preview: "Sleep routine, gym cadence, reading list, dopamine detox...",
-    pinned: false,
-    folder: "Personal",
-    messages: [],
-  },
-  {
-    id: "c8",
-    title: "Code review: message composer",
-    updatedAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
-    messageCount: 14,
-    preview: "Edge cases: IME input, paste images, drag-n-drop, retries...",
-    pinned: false,
-    folder: "Code Reviews",
-    messages: [],
-  },
-  {
-    id: "c9",
-    title: "LLM evals – rubric + dataset",
-    updatedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    messageCount: 40,
-    preview: "BLEU vs human eval, task matrix, hallucination checks...",
-    pinned: false,
-    folder: "Work Projects",
-    messages: [],
-  },
-  {
-    id: "c10",
-    title: "Prompt library – onboarding",
-    updatedAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    messageCount: 11,
-    preview: "Create intro prompts for HR, IT, and support with guardrails...",
-    pinned: false,
-    folder: "Work Projects",
-    messages: [],
-  },
-  {
-    id: "c11",
-    title: "Grocery budgeting – monthly",
-    updatedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
-    messageCount: 5,
-    preview: "Track cost per meal, reduce waste, and plan bulk buys...",
-    pinned: false,
-    folder: "Personal",
-    messages: [],
-  },
-]
+// Empty initial state - users start with no conversations
+// Real conversations will be loaded from Firestore when authentication is implemented
+export const INITIAL_CONVERSATIONS = []
 
 export const INITIAL_TEMPLATES = [
   {
     id: "t1",
-    name: "Bug Report",
-    content: `**Bug Report**
+    name: "Daily Check-in",
+    content: `🌅 **Daily Mental Health Check-in**
 
-**Description:**
-Brief description of the issue
+**How are you feeling today?**
+Rate your mood from 1-10:
 
-**Steps to Reproduce:**
-1. Step one
-2. Step two
-3. Step three
+**What's on your mind?**
+Share any thoughts or concerns you have today.
 
-**Expected Behavior:**
-What should happen
+**Energy Level:**
+- High / Medium / Low
 
-**Actual Behavior:**
-What actually happens
+**Sleep Quality:**
+How did you sleep last night?
 
-**Environment:**
-- Browser/OS:
-- Version:
-- Additional context:`,
-    snippet: "Structured bug report template with steps to reproduce...",
+**Gratitude:**
+One thing you're grateful for today:
+
+**Support Needed:**
+Is there anything specific you'd like to talk about or need help with?`,
+    snippet: "Daily mood and mental health check-in template...",
     createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "t2",
-    name: "Daily Standup",
-    content: `**Daily Standup Update**
+    name: "Stress Management",
+    content: `😰 **Stress & Anxiety Management**
 
-**Yesterday:**
-- Completed task A
-- Made progress on task B
+**What's causing stress right now?**
+Identify the main sources of your stress:
 
-**Today:**
-- Plan to work on task C
-- Continue with task B
+**Physical Symptoms:**
+- Tension, headaches, fatigue, etc.
 
-**Blockers:**
-- None / List any blockers here
+**Emotional Impact:**
+How is this affecting your mood and thoughts?
 
-**Notes:**
-Any additional context or updates`,
-    snippet: "Daily standup format with yesterday, today, and blockers...",
+**Coping Strategies Used:**
+What have you tried so far?
+
+**Support System:**
+Who can you reach out to?
+
+**Self-Care Plan:**
+What activities help you feel calmer?
+
+**Professional Help:**
+Would you like information about counseling or crisis support?
+
+*Remember: You're not alone. Help is always available.*`,
+    snippet: "Stress and anxiety management framework with coping strategies...",
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "t3",
-    name: "Code Review",
-    content: `**Code Review Checklist**
+    name: "Family Communication",
+    content: `👨‍👩‍👧‍👦 **Family & Cultural Understanding**
 
-**Scope:**
-What changes are being reviewed
+**Situation:**
+What's happening with your family or cultural expectations?
 
-**Key Areas to Focus:**
-- Logic correctness
-- Performance implications
-- Security considerations
-- Test coverage
+**Your Perspective:**
+How do you see the situation?
 
-**Questions:**
-- Any specific concerns?
-- Performance impact?
-- Breaking changes?
+**Family's Perspective:**
+Try to understand their point of view:
 
-**Testing:**
-- Unit tests added/updated?
-- Manual testing completed?`,
-    snippet: "Comprehensive code review checklist and questions...",
+**Cultural Context:**
+How do cultural values play a role?
+
+**Communication Goals:**
+What would you like to achieve?
+
+**Respectful Approach:**
+How can you honor both your needs and family values?
+
+**Compromise Ideas:**
+What middle ground might work?
+
+**Support Needed:**
+Would you like help preparing for this conversation?
+
+*MITRA understands the importance of family harmony while supporting your individual well-being.*`,
+    snippet: "Navigate family conversations with cultural sensitivity...",
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "t4",
-    name: "Meeting Notes",
-    content: `**Meeting Notes - [Meeting Title]**
+    name: "Crisis Support",
+    content: `🚨 **Immediate Support & Crisis Resources**
 
-**Date:** [Date]
-**Attendees:** [List attendees]
+**If you're having thoughts of self-harm or suicide:**
+- **Tele MANAS**: 14416 (24/7 mental health helpline)
+- **Emergency**: 112 or go to nearest hospital
+- **Crisis Text**: Text HOME to 741741
 
-**Agenda:**
-1. Topic 1
-2. Topic 2
-3. Topic 3
+**Current Safety:**
+Are you in immediate danger? Y/N
 
-**Key Decisions:**
-- Decision 1
-- Decision 2
+**Support Person:**
+Is there someone you can call right now?
 
-**Action Items:**
-- [ ] Task 1 - @person - Due: [date]
-- [ ] Task 2 - @person - Due: [date]
+**Immediate Needs:**
+What do you need most urgently?
 
-**Next Steps:**
-What happens next
+**Professional Help:**
+Would you like help connecting with a counselor?
 
-**Notes:**
-Additional context and discussion points`,
-    snippet: "Meeting notes template with agenda, decisions, and action items...",
+**Follow-up:**
+Can we check in with you later?
+
+**Remember:** 
+- Your life has value
+- This feeling is temporary  
+- Help is available
+- You are not alone
+
+*MITRA is here to support you, but for immediate crisis situations, please contact emergency services or Tele MANAS.*`,
+    snippet: "Crisis support resources and immediate safety planning...",
     createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ]
 
 export const INITIAL_FOLDERS = [
-  { id: "f1", name: "Work Projects" },
-  { id: "f2", name: "Personal" },
-  { id: "f3", name: "Code Reviews" },
+  { id: "f1", name: "Mental Health" },
+  { id: "f2", name: "Family & Relationships" },
+  { id: "f3", name: "Personal Growth" },
+  { id: "f4", name: "Crisis Support" },
 ]
