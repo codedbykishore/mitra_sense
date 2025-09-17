@@ -1,6 +1,4 @@
----
-applyTo: '**'
----
+
 
 # Voice Companion Implementation Guide for MITRA Sense
 
