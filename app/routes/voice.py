@@ -1,16 +1,20 @@
 # app/routes/voice.py
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from app.services.google_speech import SpeechService
+from app.services.gemini_ai import GeminiService
 from fastapi.responses import StreamingResponse, JSONResponse
 import io
 import base64
 import logging
+import json
+import time
 from app.config import settings # Import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 speech_service = SpeechService(rag_corpus_name=settings.CORPUS_NAME) # Pass RAG corpus name
+gemini_service = GeminiService()
 
 
 @router.post("/voice/transcribe")
@@ -65,24 +69,94 @@ async def full_voice_pipeline(audio: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
 
 
-@router.get("/voice/pipeline/audio")
-@router.post(
-    "/voice/pipeline/audio",
-    response_class=StreamingResponse,
-    responses={200: {"content": {"audio/mpeg": {}}}},
-)
-async def full_voice_pipeline_file(audio: UploadFile = File(...)):
+@router.post("/voice/pipeline/audio")
+async def voice_pipeline_json(
+    audio: UploadFile = File(...),
+    duration: str = Query(default="0"),
+    sessionId: str = Query(default=""),
+    conversationId: str = Query(default=""),
+    culturalContext: str = Query(default="{}")
+):
+    """
+    Complete voice pipeline endpoint that returns JSON response for VoiceCompanion.
+    """
     try:
-        logger.info(f"Received audio file (file route): {audio.filename}, Content-Type: {audio.content_type}")
+        import json
+        import time
+        
+        logger.info(f"Voice pipeline request - File: {audio.filename}, Duration: {duration}s, Session: {sessionId}")
+        
+        # Parse cultural context
+        try:
+            cultural_data = json.loads(culturalContext) if culturalContext else {}
+        except json.JSONDecodeError:
+            cultural_data = {}
+        
+        # Read audio data
         audio_bytes = await audio.read()
+        logger.info(f"Audio data size: {len(audio_bytes)} bytes")
+        
+        # Process through speech service
         result = await speech_service.process_voice_pipeline(audio_bytes)
-
-        headers = {"Content-Disposition": "attachment; filename=output.mp3"}
-        return StreamingResponse(
-            io.BytesIO(result["audio_output"]),
-            media_type="audio/mpeg",
-            headers=headers,
-        )
+        
+        # Format response to match VoiceCompanion expectations
+        response = {
+            "transcription": {
+                "text": result.get("transcript", ""),
+                "language": cultural_data.get("language", "en-US"),
+                "confidence": 0.9
+            },
+            "emotion": result.get("emotions", {
+                "primaryEmotion": "neutral",
+                "confidence": 0.5,
+                "stressLevel": 0.3,
+                "characteristics": {
+                    "pitch": 50,
+                    "volume": 50,
+                    "speed": 50,
+                    "clarity": 90
+                }
+            }),
+            "aiResponse": {
+                "text": result.get("gemini_response", {}).get("response", "I understand. How can I help you today?"),
+                "crisisScore": result.get("gemini_response", {}).get("crisis_score", 0.1),
+                "culturalAdaptations": cultural_data,
+                "suggestedActions": ["Take a deep breath", "Stay calm"],
+                "ragSources": result.get("gemini_response", {}).get("rag_sources", [])
+            },
+            "ttsAudio": {
+                "url": f"data:audio/mpeg;base64,{base64.b64encode(result.get('audio_output', b'')).decode('utf-8')}" if result.get("audio_output") else None,
+                "blob": None,  # Frontend will handle blob conversion if needed
+                "format": "audio/mpeg",
+                "duration": float(duration) if duration else 2.0
+            },
+            "session": {
+                "sessionId": sessionId or f"session_{hash(audio_bytes) % 10000}",
+                "conversationId": conversationId or f"conv_{hash(audio_bytes) % 10000}",
+                "timestamp": str(int(time.time()))
+            }
+        }
+        
+        logger.info(f"Pipeline successful - Transcript: '{response['transcription']['text'][:50]}...'")
+        return response
+        
     except Exception as e:
-        logger.error(f"Pipeline error in full_voice_pipeline_file: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
+        logger.error(f"Voice pipeline error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Voice pipeline error: {str(e)}")
+
+
+@router.get("/voice/pipeline/audio")
+async def voice_pipeline_info():
+    """Get information about the voice pipeline endpoint"""
+    return {
+        "endpoint": "/voice/pipeline/audio",
+        "method": "POST",
+        "description": "Complete voice processing pipeline",
+        "parameters": {
+            "audio": "Audio file (WAV, WebM, MP3, etc.)",
+            "duration": "Audio duration in seconds",
+            "sessionId": "Session identifier",
+            "conversationId": "Conversation identifier",
+            "culturalContext": "JSON string with language and cultural settings"
+        }
+    }

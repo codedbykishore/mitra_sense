@@ -11,25 +11,39 @@ import { INITIAL_CONVERSATIONS, INITIAL_TEMPLATES, INITIAL_FOLDERS } from "./moc
 import { useUser } from "@/hooks/useUser"
 
 export default function AIAssistantUI() {
-  const [theme, setTheme] = useState(() => {
-    const saved = typeof window !== "undefined" && localStorage.getItem("theme")
-    if (saved) return saved
-    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)
-      return "dark"
-    return "light"
-  })
+  // Initialize with safe defaults to prevent hydration mismatch
+  const [theme, setTheme] = useState("light")
+  const [isClient, setIsClient] = useState(false)
+
+  // Initialize theme from localStorage/media query on client side only
+  useEffect(() => {
+    setIsClient(true)
+
+    const saved = localStorage.getItem("theme")
+    if (saved) {
+      setTheme(saved)
+    } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      setTheme("dark")
+    }
+  }, [])
 
   useEffect(() => {
+    // Only apply theme changes on client side
+    if (!isClient) return
+
     try {
       if (theme === "dark") document.documentElement.classList.add("dark")
       else document.documentElement.classList.remove("dark")
       document.documentElement.setAttribute("data-theme", theme)
       document.documentElement.style.colorScheme = theme
       localStorage.setItem("theme", theme)
-    } catch {}
-  }, [theme])
+    } catch { }
+  }, [theme, isClient])
 
   useEffect(() => {
+    // Only listen for media changes on client side
+    if (!isClient) return
+
     try {
       const media = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)")
       if (!media) return
@@ -39,37 +53,53 @@ export default function AIAssistantUI() {
       }
       media.addEventListener("change", listener)
       return () => media.removeEventListener("change", listener)
-    } catch {}
-  }, [])
+    } catch { }
+  }, [isClient])
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      const raw = localStorage.getItem("sidebar-collapsed")
-      return raw ? JSON.parse(raw) : { pinned: true, recent: false, folders: true, templates: true }
-    } catch {
-      return { pinned: true, recent: false, folders: true, templates: true }
+  // Initialize collapsed state with safe default
+  const [collapsed, setCollapsed] = useState({ pinned: true, recent: false, folders: true, templates: true })
+
+  // Set from localStorage on client side only  
+  useEffect(() => {
+    if (isClient) {
+      try {
+        const raw = localStorage.getItem("sidebar-collapsed")
+        if (raw) {
+          setCollapsed(JSON.parse(raw))
+        }
+      } catch {
+        // Keep default value
+      }
     }
-  })
+  }, [isClient])
   useEffect(() => {
     try {
       localStorage.setItem("sidebar-collapsed", JSON.stringify(collapsed))
-    } catch {}
+    } catch { }
   }, [collapsed])
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try {
-      const saved = localStorage.getItem("sidebar-collapsed-state")
-      return saved ? JSON.parse(saved) : false
-    } catch {
-      return false
+  // Initialize sidebarCollapsed state with safe default  
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // Set from localStorage on client side only
+  useEffect(() => {
+    if (isClient) {
+      try {
+        const saved = localStorage.getItem("sidebar-collapsed-state")
+        if (saved !== null) {
+          setSidebarCollapsed(JSON.parse(saved))
+        }
+      } catch {
+        // Keep default value
+      }
     }
-  })
+  }, [isClient])
 
   useEffect(() => {
     try {
       localStorage.setItem("sidebar-collapsed-state", JSON.stringify(sidebarCollapsed))
-    } catch {}
+    } catch { }
   }, [sidebarCollapsed])
 
   const { user, loading } = useUser()
@@ -275,8 +305,22 @@ export default function AIAssistantUI() {
   const composerRef = useRef(null)
   const selected = conversations.find((c) => c.id === selectedId) || null
 
+  // Prevent hydration mismatch by only rendering after client is ready
+  if (!isClient) {
+    return (
+      <div className="h-screen w-full bg-zinc-50 text-zinc-900">
+        <div className="flex h-full items-center justify-center">
+          <div className="text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-zinc-600"></div>
+            <p className="mt-2 text-sm text-zinc-600">Loading MITRA...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="h-screen w-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="h-screen w-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100" suppressHydrationWarning={true}>
       <div className="md:hidden sticky top-0 z-40 flex items-center gap-2 border-b border-zinc-200/60 bg-white/80 px-3 py-2 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70">
         <div className="ml-1 flex items-center gap-2 text-sm font-semibold tracking-tight">
           <span className="inline-flex h-4 w-4 items-center justify-center">✱</span> AI Assistant

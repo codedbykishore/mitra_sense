@@ -5,7 +5,7 @@ import { Send, Loader2, Plus, Mic } from "lucide-react"
 import ComposerActionsPopover from "./ComposerActionsPopover"
 import { cls } from "./utils"
 
-const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
+const Composer = forwardRef(function Composer({ onSend, busy, onVoiceModeToggle, isVoiceMode = false }, ref) {
   const [value, setValue] = useState("")
   const [sending, setSending] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
@@ -118,8 +118,15 @@ const Composer = forwardRef(function Composer({ onSend, busy }, ref) {
 
           <div className="flex items-center gap-1 shrink-0">
             <button
-              className="inline-flex items-center justify-center rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors"
-              title="Voice input"
+              onClick={() => onVoiceModeToggle?.()}
+              className={cls(
+                "inline-flex items-center justify-center rounded-full p-2 transition-colors",
+                isVoiceMode
+                  ? "bg-blue-100 text-blue-600 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                  : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+              )}
+              title={isVoiceMode ? "Switch to text input" : "Switch to voice input"}
+              aria-label={isVoiceMode ? "Switch to text input" : "Switch to voice input"}
             >
               <Mic className="h-4 w-4" />
             </button>

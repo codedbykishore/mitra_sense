@@ -7,7 +7,7 @@ import ThemeToggle from "./ThemeToggle"
 import SearchModal from "./SearchModal"
 import SettingsPopover from "./SettingsPopover"
 import { cls } from "./utils"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 // 🔹 Import global login component
 import LoginButton from "./Login"
@@ -32,10 +32,16 @@ export default function Sidebar({
   searchRef,
   createNewChat,
   sidebarCollapsed = false,
-  setSidebarCollapsed = () => {},
+  setSidebarCollapsed = () => { },
   user = null,
 }) {
   const [showSearchModal, setShowSearchModal] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  // Ensure component only renders animations on client side
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   if (sidebarCollapsed) {
     return (
@@ -91,7 +97,7 @@ export default function Sidebar({
   return (
     <>
       <AnimatePresence>
-        {open && (
+        {open && isClient && (
           <motion.div
             key="overlay"
             initial={{ opacity: 0 }}
@@ -104,7 +110,7 @@ export default function Sidebar({
       </AnimatePresence>
 
       <AnimatePresence>
-        {(open || typeof window !== "undefined") && (
+        {(open || isClient) && (
           <motion.aside
             key="sidebar"
             initial={{ x: -340 }}
