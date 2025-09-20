@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, forwardRef, useImperativeHandle, useRef, useCallback, useEffect } from "react"
-import { Pencil, RefreshCw, Check, X, Square, AlertTriangle, Phone, Mic, Volume2, Heart } from "lucide-react"
+import { Pencil, RefreshCw, Check, X, Square, AlertTriangle, Phone, Mic, Volume2, Heart, Menu } from "lucide-react"
 import Message from "./Message"
 import Composer from "./Composer"
 import dynamic from 'next/dynamic'
@@ -89,7 +89,7 @@ function ThinkingMessage({ onPause }) {
 }
 
 const ChatPane = forwardRef(function ChatPane(
-  { conversation, onSend, onEditMessage, onResendMessage, onLoadMore, isThinking, onPauseThinking, loadingHistory, historyError },
+  { conversation, onSend, onEditMessage, onResendMessage, onLoadMore, isThinking, onPauseThinking, loadingHistory, historyError, setSidebarOpen, sidebarCollapsed },
   ref,
 ) {
   const [editingId, setEditingId] = useState(null)
@@ -287,6 +287,19 @@ const ChatPane = forwardRef(function ChatPane(
         aria-atomic="true"
         className="sr-only"
       />
+
+      {/* Mobile Menu Button - Only visible on small screens when sidebar is collapsed */}
+      {setSidebarOpen && sidebarCollapsed && (
+        <div className="md:hidden fixed top-4 left-4 z-30">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="rounded-xl p-3 bg-white shadow-lg border border-zinc-200 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:bg-zinc-800"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+          </button>
+        </div>
+      )}
 
       <div className="h-4"></div>
 

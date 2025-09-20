@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { Calendar, LayoutGrid, MoreHorizontal } from "lucide-react"
 import Sidebar from "./Sidebar"
-import Header from "./Header"
 import ChatPane from "./ChatPane"
 import GhostIconButton from "./GhostIconButton"
 import ThemeToggle from "./ThemeToggle"
@@ -581,7 +580,6 @@ export default function AIAssistantUI() {
         />
 
         <main className="relative flex min-w-0 flex-1 flex-col">
-          <Header createNewChat={createNewChat} sidebarCollapsed={sidebarCollapsed} setSidebarOpen={setSidebarOpen} />
           <ChatPane
             ref={composerRef}
             conversation={selected}
@@ -593,6 +591,8 @@ export default function AIAssistantUI() {
             onPauseThinking={pauseThinking}
             loadingHistory={loadingHistory}
             historyError={historyError}
+            setSidebarOpen={setSidebarOpen}
+            sidebarCollapsed={sidebarCollapsed}
           />
         </main>
       </div>

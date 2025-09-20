@@ -211,3 +211,50 @@ class ConversationContextResponse(BaseModel):
     message_count: int = 0
     conversation_id: str
     limit: int = 10
+
+
+# Student and Mood schemas for Feature 3
+class StudentInfo(BaseModel):
+    """Schema for student information."""
+    user_id: str
+    name: str
+    email: str
+    institution_name: Optional[str] = None
+    region: Optional[str] = None
+    age: Optional[str] = None
+    language_preference: Optional[str] = None
+    created_at: str
+
+
+class StudentsListResponse(BaseModel):
+    """Schema for listing students."""
+    students: List[StudentInfo] = Field(default_factory=list)
+    total_count: int = 0
+
+
+class MoodEntry(BaseModel):
+    """Schema for a mood entry."""
+    mood_id: str
+    mood: str = Field(..., description="Mood (happy, sad, anxious, etc.)")
+    notes: Optional[str] = Field(None, description="Optional notes")
+    created_at: str
+
+
+class AddMoodRequest(BaseModel):
+    """Schema for adding a new mood entry."""
+    mood: str = Field(..., min_length=1, max_length=50, description="Mood")
+    notes: Optional[str] = Field(None, max_length=500, description="Notes")
+
+
+class AddMoodResponse(BaseModel):
+    """Schema for mood addition response."""
+    success: bool
+    message: str
+    mood_entry: MoodEntry
+
+
+class MoodsListResponse(BaseModel):
+    """Schema for listing student moods."""
+    student_id: str
+    moods: List[MoodEntry] = Field(default_factory=list)
+    total_count: int = 0

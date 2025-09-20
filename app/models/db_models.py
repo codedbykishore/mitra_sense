@@ -104,3 +104,14 @@ class CrisisAlert(BaseModel):
     )
     resolved_at: Optional[datetime] = None
 
+
+class Mood(BaseModel):
+    """Mood entry for students."""
+    mood_id: str
+    student_id: str  # user_id of the student
+    mood: str  # mood value (happy, sad, anxious, etc.)
+    notes: Optional[str] = None
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+

@@ -11,6 +11,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import ChatPane from '../../components/ChatPane';
 import { useUser } from '../../hooks/useUser';
 import { Settings, Info, Mic, MessageCircle } from 'lucide-react';
+import Breadcrumb from '../../components/Breadcrumb';
+import QuickActions from '../../components/QuickActions';
 
 /**
  * Demo conversation for testing voice integration
@@ -210,7 +212,13 @@ export default function VoiceChatDemo() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto h-[calc(100vh-4rem)] flex">
+            {/* Navigation */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <Breadcrumb />
+                <QuickActions />
+            </div>
+
+            <div className="max-w-7xl mx-auto h-[calc(100vh-8rem)] flex">
                 {/* Settings Sidebar */}
                 {demoSettings.showTechnicalInfo && (
                     <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-6 overflow-y-auto">

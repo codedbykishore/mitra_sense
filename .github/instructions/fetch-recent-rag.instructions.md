@@ -1,6 +1,3 @@
----
-applyTo: '**'
----
 
 # Feature 2 – Fetch Recent Chat Context for RAG
 

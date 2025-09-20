@@ -1,6 +1,6 @@
 "use client"
 import { motion, AnimatePresence } from "framer-motion"
-import { PanelLeftClose, PanelLeftOpen, SearchIcon, Plus, Star, Clock, Settings } from "lucide-react"
+import { PanelLeftClose, PanelLeftOpen, SearchIcon, Plus, Star, Clock, Settings, BarChart3, Users, MessageSquare, Mic } from "lucide-react"
 import SidebarSection from "./SidebarSection"
 import ConversationRow from "./ConversationRow"
 import ThemeToggle from "./ThemeToggle"
@@ -8,9 +8,85 @@ import SearchModal from "./SearchModal"
 import SettingsPopover from "./SettingsPopover"
 import { cls } from "./utils"
 import { useState, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { canAccessDashboard } from "@/lib/permissions"
 
 // 🔹 Import global login component
 import LoginButton from "./Login"
+
+// Main Navigation Component
+function MainNavSection({ user }) {
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const mainNavItems = [
+    {
+      href: "/",
+      label: "Chat",
+      icon: MessageSquare,
+      description: "AI Assistant"
+    },
+    {
+      href: "/voice-demo",
+      label: "Voice",
+      icon: Mic,
+      description: "Voice Features"
+    }
+  ]
+
+  // Add dashboard items if user has access
+  const dashboardItems = canAccessDashboard(user) ? [
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: BarChart3,
+      description: "Overview & Analytics"
+    },
+    {
+      href: "/dashboard/students",
+      label: "Students",
+      icon: Users,
+      description: "Student Management"
+    }
+  ] : []
+
+  const allNavItems = [...mainNavItems, ...dashboardItems]
+
+  return (
+    <div className="px-1">
+      <div className="mb-3 px-2 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        Navigation
+      </div>
+      <div className="space-y-1">
+        {allNavItems.map((item) => {
+          const Icon = item.icon
+          const isActive = pathname === item.href || (item.href === "/dashboard" && pathname.startsWith("/dashboard"))
+          
+          return (
+            <button
+              key={item.href}
+              onClick={() => router.push(item.href)}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+                ${isActive 
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300" 
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
+                }
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500
+              `}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <div className="flex flex-col items-start min-w-0">
+                <span className="font-medium truncate">{item.label}</span>
+                <span className="text-xs opacity-75 truncate">{item.description}</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function Sidebar({
   open,
@@ -78,6 +154,45 @@ export default function Sidebar({
           >
             <SearchIcon className="h-5 w-5" />
           </button>
+
+          {/* Navigation Icons */}
+          <div className="border-t border-zinc-200/60 dark:border-zinc-800 pt-4 w-full flex flex-col items-center gap-3">
+            <button
+              onClick={() => window.location.href = "/"}
+              className="rounded-xl p-2 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800"
+              title="Chat"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </button>
+
+            <button
+              onClick={() => window.location.href = "/voice-demo"}
+              className="rounded-xl p-2 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800"
+              title="Voice Features"
+            >
+              <Mic className="h-5 w-5" />
+            </button>
+
+            {user && canAccessDashboard(user) && (
+              <>
+                <button
+                  onClick={() => window.location.href = "/dashboard"}
+                  className="rounded-xl p-2 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800"
+                  title="Dashboard"
+                >
+                  <BarChart3 className="h-5 w-5" />
+                </button>
+
+                <button
+                  onClick={() => window.location.href = "/dashboard/students"}
+                  className="rounded-xl p-2 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800"
+                  title="Students"
+                >
+                  <Users className="h-5 w-5" />
+                </button>
+              </>
+            )}
+          </div>
 
           <div className="mt-auto mb-4">
             <SettingsPopover>
@@ -180,6 +295,11 @@ export default function Sidebar({
 
             {/* Sections */}
             <nav className="mt-4 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-2 pb-4">
+              {/* Main Navigation - All primary navigation items */}
+              {user && (
+                <MainNavSection user={user} />
+              )}
+              
               <SidebarSection
                 icon={<Star className="h-4 w-4" />}
                 title="PINNED CHATS"
