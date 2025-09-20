@@ -241,9 +241,10 @@ export default function AIAssistantUI() {
   }
 
   function createNewChat() {
-    const id = Math.random().toString(36).slice(2)
+    // Create temporary conversation that will get real ID from backend
+    const tempId = `temp_${Math.random().toString(36).slice(2)}`
     const item = {
-      id,
+      id: tempId,
       title: "New Chat",
       updatedAt: new Date().toISOString(),
       messageCount: 0,
@@ -251,9 +252,10 @@ export default function AIAssistantUI() {
       pinned: false,
       folder: "Mental Health",
       messages: [],
+      isTemporary: true, // Mark as temporary until first message
     }
     setConversations((prev) => [item, ...prev])
-    setSelectedId(id)
+    setSelectedId(tempId)
     setSidebarOpen(false)
   }
 
@@ -288,6 +290,10 @@ export default function AIAssistantUI() {
     setThinkingConvId(convId)
 
     try {
+      // Check if this is a new conversation (temporary ID)
+      const isNewConversation = convId.startsWith('temp_');
+      console.log("🔍 Sending message - convId:", convId, "isNewConversation:", isNewConversation);
+      
       // Use the new API service for cleaner error handling
       const data = await apiService.sendChatMessage({
         text: content,
@@ -295,38 +301,79 @@ export default function AIAssistantUI() {
         language: "en",
         region: null,
         max_rag_results: 3,
+        force_new_conversation: isNewConversation,
       })
 
       // Debug: Log the API response
       console.log("🔍 AIAssistantUI - Full API response:", JSON.stringify(data, null, 2))
       console.log("🔍 AIAssistantUI - data.response:", data.response)
-      console.log("🔍 AIAssistantUI - Type of data.response:", typeof data.response)
+      console.log("🔍 AIAssistantUI - data.conversation_id:", data.conversation_id)
 
       // Use the response directly from API
       const responseText = data.response || "I'm here to help. Please let me know what's on your mind."
+      const realConversationId = data.conversation_id;
       
       console.log("🔍 AIAssistantUI - Final responseText:", responseText)
+      console.log("🔍 AIAssistantUI - Real conversation_id:", realConversationId)
+      
+      // Debug: Check if we have duplicate conversation IDs
+      const existingConvWithSameId = conversations.find(c => c.id === realConversationId && c.id !== convId);
+      if (existingConvWithSameId) {
+        console.warn("⚠️ DUPLICATE CONVERSATION ID DETECTED!", {
+          realConversationId,
+          currentConvId: convId,
+          existingConv: existingConvWithSameId.title
+        });
+      }
         
-      // Add assistant response
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id !== convId) return c
-          const asstMsg = {
-            id: Math.random().toString(36).slice(2),
-            role: "assistant",
-            content: responseText,
-            createdAt: new Date().toISOString(),
-          }
-          const msgs = [...(c.messages || []), asstMsg]
-          return {
-            ...c,
-            messages: msgs,
-            updatedAt: new Date().toISOString(),
-            messageCount: msgs.length,
-            preview: responseText.slice(0, 80),
-          }
-        }),
-      )
+      // Add assistant response and update with real conversation ID
+      setConversations((prev) => {
+        const existingConv = prev.find(c => c.id === convId);
+        const realConvExists = prev.find(c => c.id === realConversationId);
+        
+        const asstMsg = {
+          id: Math.random().toString(36).slice(2),
+          role: "assistant",
+          content: responseText,
+          createdAt: new Date().toISOString(),
+        }
+        
+        // If this is a new conversation (backend created a new ID)
+        if (realConversationId !== convId && !realConvExists) {
+          // Update the existing conversation with the real ID from backend
+          return prev.map((c) => {
+            if (c.id !== convId) return c
+            const msgs = [...(c.messages || []), asstMsg]
+            return {
+              ...c,
+              id: realConversationId, // Update to real backend ID
+              messages: msgs,
+              updatedAt: new Date().toISOString(),
+              messageCount: msgs.length,
+              preview: responseText.slice(0, 80),
+              title: c.messages.length > 0 ? c.messages[0].content.slice(0, 30) + "..." : "New Chat",
+            }
+          })
+        } else {
+          // Normal case: add message to existing conversation
+          return prev.map((c) => {
+            if (c.id !== realConversationId) return c
+            const msgs = [...(c.messages || []), asstMsg]
+            return {
+              ...c,
+              messages: msgs,
+              updatedAt: new Date().toISOString(),
+              messageCount: msgs.length,
+              preview: responseText.slice(0, 80),
+            }
+          })
+        }
+      })
+      
+      // Update selected ID to the real conversation ID
+      if (realConversationId !== convId) {
+        setSelectedId(realConversationId);
+      }
     } catch (err) {
       console.error("Chat API error:", err)
       

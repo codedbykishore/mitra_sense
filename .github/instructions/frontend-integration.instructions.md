@@ -1,6 +1,4 @@
----
-applyTo: '**'
----
+
 
 # MITRA Sense — Feature 2.6: Frontend Integration for Chat History
 

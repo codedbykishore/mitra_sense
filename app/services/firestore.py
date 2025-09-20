@@ -97,34 +97,39 @@ class FirestoreService:
         ref = self.db.collection("conversations").document(conversation_id)
         await ref.update({"messages": firestore.ArrayUnion([message])})
 
-    async def create_or_update_conversation(self, user_id: str) -> str:
-        """Create new conversation if none exists or return active one."""
+    async def create_or_update_conversation(
+        self, user_id: str, force_new: bool = False
+    ) -> str:
+        """Create new conversation if none exists or return active one.
+        If force_new=True, always creates new conversation."""
         from datetime import datetime, timezone
         import uuid
         
-        # Check for existing active conversation for user
-        conversations_ref = self.db.collection("conversations")
-        query = conversations_ref.where(
-            "participants", "array_contains", user_id
-        )
-        
-        # Get the most recent conversation
-        recent_conversation = None
-        async for doc in query.stream():
-            conversation_data = doc.to_dict()
-            last_active = conversation_data.get("last_active_at")
-            if (not recent_conversation or
-                    last_active > recent_conversation.get("last_active_at")):
-                recent_conversation = conversation_data
-                recent_conversation["conversation_id"] = doc.id
-        
-        if recent_conversation:
-            # Update last_active_at and return existing conversation
-            conversation_id = recent_conversation["conversation_id"]
-            await self.update_conversation(conversation_id, {
-                "last_active_at": datetime.now(timezone.utc)
-            })
-            return conversation_id
+        # If force_new is True, skip existing conversation lookup
+        if not force_new:
+            # Check for existing active conversation for user
+            conversations_ref = self.db.collection("conversations")
+            query = conversations_ref.where(
+                "participants", "array_contains", user_id
+            )
+            
+            # Get the most recent conversation
+            recent_conversation = None
+            async for doc in query.stream():
+                conversation_data = doc.to_dict()
+                last_active = conversation_data.get("last_active_at")
+                if (not recent_conversation or
+                        last_active > recent_conversation.get("last_active_at")):
+                    recent_conversation = conversation_data
+                    recent_conversation["conversation_id"] = doc.id
+            
+            if recent_conversation:
+                # Update last_active_at and return existing conversation
+                conversation_id = recent_conversation["conversation_id"]
+                await self.update_conversation(conversation_id, {
+                    "last_active_at": datetime.now(timezone.utc)
+                })
+                return conversation_id
         
         # Create new conversation
         conversation_id = str(uuid.uuid4())

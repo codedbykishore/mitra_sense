@@ -261,16 +261,27 @@ class GeminiService:
         # Log the language context
         logger.info(f"Processing with language: {response_language}, Detected: {detected_lang}, Confidence: {confidence:.2f}")
         
-        # Format the prompt with RAG context if available
+        # Format the prompt with conversation context and RAG context
+        conversation_context = options.get('conversation_context', '')
         rag_context = options.get('rag_context', '')
-        if rag_context:
-            prompt = f"""You are MITRA, a compassionate mental health companion for Indian youth. Use the following context to provide a direct, caring response.
+        
+        # Build the context section
+        context_parts = []
+        if conversation_context.strip():
+            context_parts.append(f"Previous conversation:\n{conversation_context}")
+        
+        if rag_context.strip():
+            context_parts.append(f"Relevant knowledge:\n{rag_context}")
+        
+        if context_parts:
+            full_context = "\n\n".join(context_parts)
+            prompt = f"""You are MITRA, a compassionate mental health companion for Indian youth. Use the following context to provide a direct, caring response that builds on the conversation.
 
-Context: {rag_context}
+{full_context}
 
 User says: "{text}"
 
-Respond naturally and compassionately as MITRA would, using the context if helpful. 
+Respond naturally and compassionately as MITRA would, incorporating both the conversation history and relevant knowledge. Stay on topic and build on what was previously discussed.
 
 FORMATTING RULES:
 - Use proper paragraphs with double line breaks between different topics

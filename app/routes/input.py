@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from app.services.gemini_ai import GeminiService
 from app.services.rag_service import RAGService
 from app.services.firestore import FirestoreService
+from app.services.conversation_service import ConversationService
 from typing import Optional, List, Dict, Any
 from app.config import Settings
 import uuid
@@ -23,6 +24,21 @@ class ChatRequest(BaseModel):
     language: str = "en"
     region: Optional[str] = None
     max_rag_results: int = 3
+    force_new_conversation: bool = False
+    conversation_id: Optional[str] = Field(
+        None,
+        description="Optional conversation ID to fetch recent context from"
+    )
+    include_conversation_context: bool = Field(
+        True,
+        description="Whether to include recent conversation history for RAG"
+    )
+    context_limit: int = Field(
+        10,
+        ge=1,
+        le=50,
+        description="Number of recent messages to include as context"
+    )
 
 
 class RAGSource(BaseModel):
@@ -33,6 +49,7 @@ class RAGSource(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+    conversation_id: str
     sources: List[RAGSource] = []
     context_used: bool = False
 
@@ -40,6 +57,7 @@ class ChatResponse(BaseModel):
 gemini_service = GeminiService()
 rag_service = RAGService()
 firestore_service = FirestoreService()
+conversation_service = ConversationService()
 
 
 def format_rag_context(rag_results: List[Dict[str, Any]]) -> str:
@@ -75,10 +93,44 @@ async def chat_endpoint(
                 # Handle case where user might be a string or other format
                 user_id = str(current_user)
         
-        # Create or get conversation for the user (including anonymous)
-        conversation_id = await (
-            firestore_service.create_or_update_conversation(user_id)
-        )
+        # Use provided conversation_id or create/get one for the user
+        if req.conversation_id:
+            conversation_id = req.conversation_id
+            # Validate user has access to this conversation
+            if user_id != "anonymous":
+                has_access = await conversation_service.validate_user_access(
+                    conversation_id, user_id
+                )
+                if not has_access:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Access denied to conversation"
+                    )
+        else:
+            conversation_id = await (
+                firestore_service.create_or_update_conversation(
+                    user_id, force_new=req.force_new_conversation
+                )
+            )
+
+        # Fetch recent conversation context if requested
+        conversation_context = ""
+        if req.include_conversation_context:
+            try:
+                recent_messages = await (
+                    conversation_service.get_recent_context(
+                        conversation_id, limit=req.context_limit
+                    )
+                )
+                if recent_messages:
+                    conversation_context = (
+                        await conversation_service.format_context_for_rag(
+                            recent_messages, include_metadata=False
+                        )
+                    )
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"Warning: Could not fetch conversation context: {e}")
 
         # Detect language from user input
         detected_language = req.language
@@ -117,10 +169,11 @@ async def chat_endpoint(
         # Format the context for the LLM
         rag_context = format_rag_context(rag_results)
 
-        # Add RAG context to the existing context
+        # Add RAG context and conversation context to the existing context
         enhanced_context = {
             **req.context,
             "rag_context": rag_context,
+            "conversation_context": conversation_context,
             "sources": [
                 {
                     "text": r.get("text", ""),
@@ -162,6 +215,7 @@ async def chat_endpoint(
 
         return ChatResponse(
             response=response_text,
+            conversation_id=conversation_id,
             sources=[
                 RAGSource(
                     text=r.get("text", ""),

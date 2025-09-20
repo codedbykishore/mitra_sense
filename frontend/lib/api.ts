@@ -32,16 +32,35 @@ interface ConversationMessagesResponse {
   has_more: boolean;
 }
 
+interface ConversationContextResponse {
+  context: MessageInfo[];
+  formatted_context: string;
+  message_count: number;
+  conversation_id: string;
+  limit: number;
+}
+
 interface ChatRequest {
   text: string;
   context: Record<string, any>;
   language: string;
   region: string | null;
   max_rag_results: number;
+  force_new_conversation?: boolean;
+  conversation_id?: string;
+  include_conversation_context?: boolean;
+  context_limit?: number;
 }
 
 interface ChatResponse {
   response: string;
+  conversation_id: string;
+  sources?: Array<{
+    text: string;
+    source: string;
+    relevance_score: number;
+  }>;
+  context_used?: boolean;
   emotion_detected?: Record<string, number>;
   crisis_score?: number;
   rag_sources?: string[];
@@ -181,14 +200,62 @@ class APIService {
   }
 
   /**
-   * Send a chat message and get AI response
+   * Get recent conversation context for RAG-enhanced responses
+   * @param conversationId - The conversation ID
+   * @param limit - Maximum number of recent messages (1-50)
+   * @returns Promise<ConversationContextResponse>
+   */
+  async getConversationContext(
+    conversationId: string,
+    limit: number = 10
+  ): Promise<ConversationContextResponse> {
+    const cacheKey = `context_${conversationId}_${limit}`;
+    
+    // Try to get from cache first
+    const cached = this.getCache(cacheKey);
+    if (cached) {
+      console.log(`📥 Using cached context for conversation ${conversationId}`);
+      return cached;
+    }
+
+    // Fetch from API
+    const response = await this.makeRequest<ConversationContextResponse>(
+      `/conversations/${conversationId}/context?limit=${limit}`
+    );
+    
+    // Cache the response for a shorter time (5 minutes) since context changes frequently
+    const shortCacheData = {
+      data: response,
+      timestamp: Date.now(),
+      expiry: Date.now() + (5 * 60 * 1000) // 5 minutes
+    };
+    
+    try {
+      localStorage.setItem(`${this.cachePrefix}context_${conversationId}_${limit}`, JSON.stringify(shortCacheData));
+    } catch (error) {
+      console.warn('Failed to cache context data:', error);
+    }
+    
+    console.log(`💾 Cached context for conversation ${conversationId}`);
+    return response;
+  }
+
+  /**
+   * Send a chat message and get AI response with automatic conversation context
    * @param request - Chat request data
    * @returns Promise<ChatResponse>
    */
   async sendChatMessage(request: ChatRequest): Promise<ChatResponse> {
+    // Enhanced request with conversation context handling
+    const enhancedRequest = {
+      ...request,
+      include_conversation_context: request.include_conversation_context ?? true,
+      context_limit: request.context_limit ?? 10,
+    };
+
     const response = await this.makeRequest<ChatResponse>('/input/chat', {
       method: 'POST',
-      body: JSON.stringify(request),
+      body: JSON.stringify(enhancedRequest),
     });
 
     // DEBUG: Log the full response structure
@@ -207,8 +274,36 @@ class APIService {
     // Clear message caches for all conversations since we don't know which conversation this belongs to
     this.clearCacheByPattern('messages_');
     this.clearCacheByPattern('history_');
+    this.clearCacheByPattern('context_'); // Clear context cache as well
 
     return response;
+  }
+
+  /**
+   * Send a chat message with explicit conversation context
+   * @param conversationId - The conversation ID to get context from
+   * @param messageText - The message text to send
+   * @param options - Additional request options
+   * @returns Promise<ChatResponse>
+   */
+  async sendChatMessageWithContext(
+    conversationId: string,
+    messageText: string,
+    options: Partial<ChatRequest> = {}
+  ): Promise<ChatResponse> {
+    const request: ChatRequest = {
+      text: messageText,
+      conversation_id: conversationId,
+      include_conversation_context: true,
+      context_limit: options.context_limit ?? 10,
+      context: options.context ?? {},
+      language: options.language ?? "en",
+      region: options.region ?? null,
+      max_rag_results: options.max_rag_results ?? 3,
+      force_new_conversation: options.force_new_conversation ?? false,
+    };
+
+    return this.sendChatMessage(request);
   }
 
   /**
@@ -405,7 +500,8 @@ export type {
   ConversationInfo, 
   ConversationsListResponse, 
   MessageInfo, 
-  ConversationMessagesResponse, 
+  ConversationMessagesResponse,
+  ConversationContextResponse,
   ChatRequest, 
   ChatResponse,
   APIError 

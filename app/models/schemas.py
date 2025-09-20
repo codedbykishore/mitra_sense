@@ -199,3 +199,15 @@ class ConversationMessagesResponse(BaseModel):
     message_count: int = 0
     limit: int = 50
     has_more: bool = False
+
+
+class ConversationContextResponse(BaseModel):
+    """Schema for recent conversation context for RAG."""
+    context: List[MessageInfo] = Field(default_factory=list)
+    formatted_context: str = Field(
+        default="",
+        description="Pre-formatted context string for AI prompt inclusion"
+    )
+    message_count: int = 0
+    conversation_id: str
+    limit: int = 10
