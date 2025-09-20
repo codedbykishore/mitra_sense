@@ -33,6 +33,14 @@ class User(BaseModel):
     privacy_settings: Dict[str, bool] = Field(
         default_factory=lambda: {"share_data": False}
     )
+    
+    # Privacy flags for Feature 5
+    privacy_flags: Dict[str, bool] = Field(
+        default_factory=lambda: {
+            "share_moods": True,
+            "share_conversations": True
+        }
+    )
 
 
 class Institution(BaseModel):
@@ -114,4 +122,18 @@ class Mood(BaseModel):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
+
+
+class AccessLog(BaseModel):
+    """Access log entry for tracking data access."""
+    log_id: str
+    user_id: str  # The user whose data was accessed
+    resource: str  # Resource accessed (e.g., "moods", "conversations")
+    action: str  # Action performed (e.g., "view", "export", "list")
+    performed_by: str  # user_id of who performed the action
+    performed_by_role: str  # Role of the person who performed the action
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    metadata: Dict[str, str] = Field(default_factory=dict)  # Additional info
 

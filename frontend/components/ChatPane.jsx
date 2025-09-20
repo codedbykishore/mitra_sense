@@ -8,6 +8,26 @@ import dynamic from 'next/dynamic'
 import { useUser } from "../hooks/useUser"
 import { cls } from "./utils"
 
+// Dynamically import MoodDisplay with no SSR
+const MoodDisplay = dynamic(() => import("./mood/MoodDisplay"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center p-2">
+      <div className="text-xs text-zinc-500">Loading mood...</div>
+    </div>
+  )
+})
+
+// Dynamically import MoodSelector with no SSR
+const MoodSelector = dynamic(() => import("./mood/MoodSelector"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center p-2">
+      <div className="text-xs text-zinc-500">Loading mood selector...</div>
+    </div>
+  )
+})
+
 // Dynamically import VoiceCompanion with no SSR to prevent hydration issues
 const VoiceCompanion = dynamic(() => import("./voice/VoiceCompanion"), {
   ssr: false,
@@ -302,6 +322,20 @@ const ChatPane = forwardRef(function ChatPane(
       )}
 
       <div className="h-4"></div>
+
+      {/* Mood Display and Selector - Show current mood and allow manual updates */}
+      {user && user.user_id && (
+        <div className="mx-4 mb-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <MoodDisplay studentId={user.user_id} />
+            </div>
+            <div className="flex-shrink-0">
+              <MoodSelector studentId={user.user_id} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Crisis Alert Banner */}
       {crisisAlert && (

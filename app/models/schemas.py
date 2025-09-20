@@ -26,6 +26,7 @@ class ChatResponse(BaseModel):
     rag_sources: List[str] = Field(default_factory=list)
     suggested_actions: List[str] = Field(default_factory=list)
     cultural_adaptations: Dict[str, str] = Field(default_factory=dict)
+    mood_inference: Optional[Dict] = Field(default=None, description="Auto mood inference results")
 
 
 class PeerMatchRequest(BaseModel):
@@ -236,13 +237,20 @@ class MoodEntry(BaseModel):
     """Schema for a mood entry."""
     mood_id: str
     mood: str = Field(..., description="Mood (happy, sad, anxious, etc.)")
+    intensity: Optional[int] = Field(
+        None, ge=1, le=10, description="Mood intensity (1-10)"
+    )
     notes: Optional[str] = Field(None, description="Optional notes")
+    timestamp: str
     created_at: str
 
 
 class AddMoodRequest(BaseModel):
     """Schema for adding a new mood entry."""
     mood: str = Field(..., min_length=1, max_length=50, description="Mood")
+    intensity: Optional[int] = Field(
+        None, ge=1, le=10, description="Mood intensity (1-10)"
+    )
     notes: Optional[str] = Field(None, max_length=500, description="Notes")
 
 
@@ -258,3 +266,116 @@ class MoodsListResponse(BaseModel):
     student_id: str
     moods: List[MoodEntry] = Field(default_factory=list)
     total_count: int = 0
+
+
+# Privacy and Access Logging schemas for Feature 5
+class PrivacyFlags(BaseModel):
+    """Schema for privacy flags."""
+    share_moods: bool = Field(True, description="Allow sharing moods")
+    share_conversations: bool = Field(
+        True, description="Allow sharing conversations"
+    )
+
+
+class UpdatePrivacyRequest(BaseModel):
+    """Schema for updating privacy flags."""
+    privacy_flags: PrivacyFlags
+
+
+class UpdatePrivacyResponse(BaseModel):
+    """Schema for privacy update response."""
+    success: bool
+    message: str
+    privacy_flags: PrivacyFlags
+
+
+class AccessLogEntry(BaseModel):
+    """Schema for access log entry."""
+    log_id: str
+    resource: str
+    action: str
+    performed_by: str
+    performed_by_role: str
+    timestamp: str
+    metadata: Dict[str, str] = Field(default_factory=dict)
+
+
+class AccessLogsResponse(BaseModel):
+    """Schema for access logs response."""
+    student_id: str
+    logs: List[AccessLogEntry] = Field(default_factory=list)
+    total_count: int = 0
+
+
+# Enhanced Mood Schemas for Feature 6
+class UpdateMoodRequest(BaseModel):
+    """Schema for updating student mood."""
+    mood: str = Field(..., min_length=1, max_length=50, description="Mood")
+    intensity: Optional[int] = Field(
+        None, ge=1, le=10, description="Mood intensity (1-10)"
+    )
+    notes: Optional[str] = Field(None, max_length=500, description="Notes")
+
+
+class CurrentMoodResponse(BaseModel):
+    """Schema for current mood response."""
+    mood_id: Optional[str] = None
+    mood: Optional[str] = None
+    intensity: Optional[int] = None
+    notes: Optional[str] = None
+    timestamp: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class MoodStreamEntry(BaseModel):
+    """Schema for mood stream entry with student info."""
+    mood_id: str
+    student_id: str
+    student_name: str
+    mood: str
+    intensity: Optional[int] = None
+    timestamp: str
+
+
+class MoodStreamResponse(BaseModel):
+    """Schema for mood stream response."""
+    mood_entries: List[MoodStreamEntry] = Field(default_factory=list)
+    total_count: int = 0
+
+
+class MoodAnalyticsResponse(BaseModel):
+    """Schema for mood analytics response."""
+    total_students: int
+    students_with_mood_sharing: int
+    total_mood_entries: int
+    recent_mood_entries_24h: int
+    mood_distribution: Dict[str, int] = Field(default_factory=dict)
+    mood_percentages: Dict[str, float] = Field(default_factory=dict)
+    average_moods_per_student: float
+    most_common_mood: Optional[str] = None
+
+
+# Emotion Analysis and Mood Inference Schemas
+class EmotionAnalysisResponse(BaseModel):
+    """Schema for emotion analysis results."""
+    emotions: Dict[str, float] = Field(default_factory=dict)
+    inferred_mood: str
+    intensity: int = Field(ge=1, le=10)
+    confidence: float = Field(ge=0.0, le=1.0)
+    auto_updated: bool = False
+    timestamp: str
+
+
+class MoodInferenceRequest(BaseModel):
+    """Schema for mood inference request."""
+    message: str = Field(..., min_length=1, max_length=2000)
+    language: str = Field(default="en")
+    auto_update_enabled: bool = Field(default=True)
+
+
+class MoodInferenceResponse(BaseModel):
+    """Schema for mood inference response."""
+    message_analyzed: str
+    emotion_analysis: EmotionAnalysisResponse
+    suggestion: str
+    privacy_note: str

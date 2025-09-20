@@ -382,3 +382,34 @@ class FirestoreService:
                 .document(institution_id)
                 .update({"student_count": firestore.Increment(-1)})
             )
+
+    # ---------- ACCESS LOGS ----------
+    async def create_access_log(self, access_log: dict) -> None:
+        """Create an access log entry."""
+        await (
+            self.db.collection("access_logs")
+            .document(access_log["log_id"])
+            .set(access_log)
+        )
+
+    async def get_access_logs_for_user(
+        self, user_id: str, limit: int = 50
+    ) -> List[dict]:
+        """Get access logs for a specific user."""
+        try:
+            logs_ref = self.db.collection("access_logs")
+            query = (
+                logs_ref.where("user_id", "==", user_id)
+                .order_by("timestamp", direction="DESCENDING")
+                .limit(limit)
+            )
+            
+            logs = []
+            async for doc in query.stream():
+                log_data = doc.to_dict()
+                logs.append(log_data)
+            
+            return logs
+        except Exception as e:
+            logger.error(f"Error retrieving access logs for {user_id}: {e}")
+            return []

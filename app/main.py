@@ -41,7 +41,9 @@ from app.routes.auth import router as auth_router
 from app.routes.users import router as users_router
 from app.routes.conversations import router as conversations_router
 from app.routes.students import router as students_router
+from app.routes.mood import router as mood_router
 from app.routes.crisis import router as crisis_router
+from app.routes.privacy import router as privacy_router
 from app.services.gemini_ai import GeminiService
 
 app.include_router(crisis_router, prefix="/api/v1/crisis", tags=["crisis"])
@@ -49,9 +51,11 @@ app.include_router(input_router, prefix="/api/v1/input")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(students_router, prefix="/api/v1", tags=["students"])
+app.include_router(mood_router, prefix="/api/v1", tags=["mood"])
 app.include_router(
     conversations_router, prefix="/api/v1", tags=["conversations"]
 )
+app.include_router(privacy_router, tags=["privacy"])
 app.include_router(auth_router, prefix="")
 
 rag_corpus_name = getattr(settings, "CORPUS_NAME", None)

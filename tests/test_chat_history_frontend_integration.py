@@ -16,6 +16,7 @@ from app.main import app
 from app.services.firestore import FirestoreService
 from app.models.db_models import User, Conversation, Message
 from app.models.schemas import ConversationsListResponse, ConversationMessagesResponse
+from app.dependencies.auth import get_current_user_from_session
 from datetime import datetime, timezone
 
 
@@ -51,25 +52,30 @@ class TestChatHistoryFrontendIntegration:
             }
         ]
 
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_user_conversations', return_value=mock_conversations):
-                response = self.client.get("/api/v1/conversations")
-                
-                assert response.status_code == 200
-                data = response.json()
-                
-                # Verify response structure matches frontend expectations
-                assert "conversations" in data
-                assert "total_count" in data
-                assert data["total_count"] == 2
-                
-                # Verify conversation info structure
-                conv = data["conversations"][0]
-                assert "conversation_id" in conv
-                assert "participants" in conv
-                assert "created_at" in conv
-                assert "last_active_at" in conv
-                assert "participant_count" in conv
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: self.mock_user
+        
+        with patch.object(FirestoreService, 'get_user_conversations', new_callable=AsyncMock, return_value=mock_conversations):
+            response = self.client.get("/api/v1/conversations")
+            
+            assert response.status_code == 200
+            data = response.json()
+            
+            # Verify response structure matches frontend expectations
+            assert "conversations" in data
+            assert "total_count" in data
+            assert data["total_count"] == 2
+            
+            # Verify conversation info structure
+            conv = data["conversations"][0]
+            assert "conversation_id" in conv
+            assert "participants" in conv
+            assert "created_at" in conv
+            assert "last_active_at" in conv
+            assert "participant_count" in conv
+        
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_conversation_messages_endpoint(self):
@@ -100,33 +106,38 @@ class TestChatHistoryFrontendIntegration:
             }
         ]
 
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_conversation', return_value=mock_conversation):
-                with patch.object(FirestoreService, 'get_messages', return_value=mock_messages):
-                    response = self.client.get("/api/v1/conversations/conv_123/messages?limit=50")
-                    
-                    assert response.status_code == 200
-                    data = response.json()
-                    
-                    # Verify response structure matches frontend expectations
-                    assert "conversation_id" in data
-                    assert "messages" in data
-                    assert "message_count" in data
-                    assert "limit" in data
-                    assert "has_more" in data
-                    
-                    assert data["conversation_id"] == "conv_123"
-                    assert data["message_count"] == 2
-                    assert data["limit"] == 50
-                    assert data["has_more"] == False
-                    
-                    # Verify message structure for frontend consumption
-                    msg = data["messages"][0]
-                    assert "message_id" in msg
-                    assert "sender_id" in msg
-                    assert "text" in msg
-                    assert "timestamp" in msg
-                    assert "metadata" in msg
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: self.mock_user
+        
+        with patch.object(FirestoreService, 'get_conversation', new_callable=AsyncMock, return_value=mock_conversation):
+            with patch.object(FirestoreService, 'get_messages', new_callable=AsyncMock, return_value=mock_messages):
+                response = self.client.get("/api/v1/conversations/conv_123/messages?limit=50")
+                
+                # Clean up dependency override
+                app.dependency_overrides.clear()
+                
+                assert response.status_code == 200
+                data = response.json()
+                
+                # Verify response structure matches frontend expectations
+                assert "conversation_id" in data
+                assert "messages" in data
+                assert "message_count" in data
+                assert "limit" in data
+                assert "has_more" in data
+                
+                assert data["conversation_id"] == "conv_123"
+                assert data["message_count"] == 2
+                assert data["limit"] == 50
+                assert data["has_more"] == False
+                
+                # Verify message structure for frontend consumption
+                msg = data["messages"][0]
+                assert "message_id" in msg
+                assert "sender_id" in msg
+                assert "text" in msg
+                assert "timestamp" in msg
+                assert "metadata" in msg
 
     @pytest.mark.asyncio  
     async def test_messages_chronological_order(self):
@@ -167,24 +178,29 @@ class TestChatHistoryFrontendIntegration:
             }
         ]
 
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_conversation', return_value=mock_conversation):
-                with patch.object(FirestoreService, 'get_messages', return_value=mock_messages):
-                    response = self.client.get("/api/v1/conversations/conv_123/messages")
-                    
-                    assert response.status_code == 200
-                    data = response.json()
-                    messages = data["messages"]
-                    
-                    # Frontend should sort chronologically, but let's verify backend order
-                    # The frontend API service will handle final sorting
-                    assert len(messages) == 3
-                    
-                    # Verify all messages are present
-                    message_texts = [msg["text"] for msg in messages]
-                    assert "First message" in message_texts
-                    assert "Second message" in message_texts  
-                    assert "Third message" in message_texts
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: self.mock_user
+        
+        with patch.object(FirestoreService, 'get_conversation', new_callable=AsyncMock, return_value=mock_conversation):
+            with patch.object(FirestoreService, 'get_messages', new_callable=AsyncMock, return_value=mock_messages):
+                response = self.client.get("/api/v1/conversations/conv_123/messages")
+                
+                # Clean up dependency override
+                app.dependency_overrides.clear()
+                
+                assert response.status_code == 200
+                data = response.json()
+                messages = data["messages"]
+                
+                # Frontend should sort chronologically, but let's verify backend order
+                # The frontend API service will handle final sorting
+                assert len(messages) == 3
+                
+                # Verify all messages are present
+                message_texts = [msg["text"] for msg in messages]
+                assert "First message" in message_texts
+                assert "Second message" in message_texts  
+                assert "Third message" in message_texts
 
     @pytest.mark.asyncio
     async def test_pagination_limit_parameter(self):
@@ -207,9 +223,9 @@ class TestChatHistoryFrontendIntegration:
                 "mood_score": None
             })
 
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_conversation', return_value=mock_conversation):
-                with patch.object(FirestoreService, 'get_messages', return_value=mock_messages[:5]):
+        with patch('app.dependencies.auth.get_current_user_from_session', new_callable=AsyncMock, return_value=self.mock_user):
+            with patch.object(FirestoreService, 'get_conversation', new_callable=AsyncMock, return_value=mock_conversation):
+                with patch.object(FirestoreService, 'get_messages', new_callable=AsyncMock, return_value=mock_messages[:5]):
                     # Test with limit=5
                     response = self.client.get("/api/v1/conversations/conv_123/messages?limit=5")
                     
@@ -237,8 +253,8 @@ class TestChatHistoryFrontendIntegration:
             participants=["other_user_456", "ai"]  # Current user not in participants
         )
 
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_conversation', return_value=mock_conversation):
+        with patch('app.dependencies.auth.get_current_user_from_session', new_callable=AsyncMock, return_value=self.mock_user):
+            with patch.object(FirestoreService, 'get_conversation', new_callable=AsyncMock, return_value=mock_conversation):
                 response = self.client.get("/api/v1/conversations/conv_unauthorized/messages")
                 
                 assert response.status_code == 403
@@ -246,8 +262,8 @@ class TestChatHistoryFrontendIntegration:
 
     def test_conversation_not_found(self):
         """Test proper error handling for non-existent conversations."""
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_conversation', return_value=None):
+        with patch('app.dependencies.auth.get_current_user_from_session', new_callable=AsyncMock, return_value=self.mock_user):
+            with patch.object(FirestoreService, 'get_conversation', new_callable=AsyncMock, return_value=None):
                 response = self.client.get("/api/v1/conversations/nonexistent/messages")
                 
                 assert response.status_code == 404
@@ -256,8 +272,8 @@ class TestChatHistoryFrontendIntegration:
     @pytest.mark.asyncio
     async def test_empty_conversations_list(self):
         """Test handling of users with no conversations."""
-        with patch('app.dependencies.auth.get_current_user_from_session', return_value=self.mock_user):
-            with patch.object(FirestoreService, 'get_user_conversations', return_value=[]):
+        with patch('app.dependencies.auth.get_current_user_from_session', new_callable=AsyncMock, return_value=self.mock_user):
+            with patch.object(FirestoreService, 'get_user_conversations', new_callable=AsyncMock, return_value=[]):
                 response = self.client.get("/api/v1/conversations")
                 
                 assert response.status_code == 200

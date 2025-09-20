@@ -87,7 +87,7 @@ class TestVoicePipelineReal:
                 # Check transcription structure
                 if "transcription" in data:
                     trans = data["transcription"]
-                    assert "transcript" in trans
+                    assert "text" in trans  # Changed from "transcript" to "text"
                     assert "language" in trans
                 
                 # Check emotion structure

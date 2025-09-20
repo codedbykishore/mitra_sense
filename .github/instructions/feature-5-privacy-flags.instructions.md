@@ -1,7 +1,3 @@
----
-applyTo: '**'
----
-
 # Feature 5 – Privacy Flags + Access Logging
 
 ## Objective

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models.db_models import User, Institution
 from app.models.schemas import OnboardingRequest, UserRole
+from app.dependencies.auth import get_current_user_from_session
 
 # Patch path for auth dependency
 AUTH_PATCH = 'app.dependencies.auth.get_current_user_from_session'
@@ -21,7 +22,7 @@ class TestOnboardingMocks:
         test_user = User(
             user_id="test@example.com",
             email="test@example.com",
-            hashed_password="hashed",
+            
             onboarding_completed=False
         )
         mock_fs.get_user_by_email = AsyncMock(return_value=test_user)
@@ -29,16 +30,17 @@ class TestOnboardingMocks:
         mock_fs.get_institution = AsyncMock(return_value=Institution(
             institution_id="inst_123",
             institution_name="Test University",
-            region="North India"
+            contact_person="Dr. Test",
+            region="North India",
+            email="admin@testuniv.edu",
+            user_id="admin_123"
         ))
         mock_fs.increment_student_count = AsyncMock()
 
-        # Mock current user session
-        auth_patch = 'app.dependencies.auth.get_current_user_from_session'
-        with patch(auth_patch) as mock_auth:
-            mock_auth.return_value = {"email": "test@example.com"}
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: test_user
 
-            response = client.post("/api/v1/users/onboarding", json={
+        response = client.post("/api/v1/users/onboarding", json={
                 "role": "student",
                 "profile": {
                     "name": "Test Student",
@@ -48,6 +50,9 @@ class TestOnboardingMocks:
                 },
                 "institution_id": "inst_123"
             })
+
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
         assert response.status_code == 200
         data = response.json()
@@ -61,7 +66,7 @@ class TestOnboardingMocks:
         test_user = User(
             user_id="admin@testuniv.edu",
             email="admin@testuniv.edu",
-            hashed_password="hashed",
+            
             onboarding_completed=False
         )
         mock_fs.get_user_by_email = AsyncMock(return_value=test_user)
@@ -69,18 +74,20 @@ class TestOnboardingMocks:
         mock_fs.get_institution_by_name = AsyncMock(return_value=None)
         mock_fs.create_institution = AsyncMock()
 
-        # Mock current user session
-        with patch(AUTH_PATCH) as mock_auth:
-            mock_auth.return_value = {"email": "admin@testuniv.edu"}
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: test_user
 
-            response = client.post("/api/v1/users/onboarding", json={
-                "role": "institution",
-                "profile": {
-                    "institution_name": "New Test University",
-                    "contact_person": "Dr. Admin",
-                    "region": "South India"
-                }
-            })
+        response = client.post("/api/v1/users/onboarding", json={
+            "role": "institution",
+            "profile": {
+                "institution_name": "New Test University",
+                "contact_person": "Dr. Admin",
+                "region": "South India"
+            }
+        })
+
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
         assert response.status_code == 200
         data = response.json()
@@ -93,18 +100,21 @@ class TestOnboardingMocks:
         test_user = User(
             user_id="test@example.com",
             email="test@example.com",
-            hashed_password="hashed",
+            
             onboarding_completed=True
         )
         mock_fs.get_user_by_email = AsyncMock(return_value=test_user)
 
-        with patch('app.dependencies.auth.get_current_user_from_session') as mock_auth:
-            mock_auth.return_value = {"email": "test@example.com"}
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: test_user
 
-            response = client.post("/api/v1/users/onboarding", json={
-                "role": "student",
-                "profile": {"name": "Test"}
-            })
+        response = client.post("/api/v1/users/onboarding", json={
+            "role": "student",
+            "profile": {"name": "Test"}
+        })
+
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
         assert response.status_code == 400
         assert "already completed" in response.json()["detail"]
@@ -115,29 +125,35 @@ class TestOnboardingMocks:
         test_user = User(
             user_id="admin@example.edu",
             email="admin@example.edu",
-            hashed_password="hashed",
+            
             onboarding_completed=False
         )
         existing_institution = Institution(
             institution_id="existing_123",
             institution_name="Existing University",
-            region="North India"
+            contact_person="Dr. Existing",
+            region="North India",
+            email="admin@existing.edu",
+            user_id="admin_existing"
         )
         
         mock_fs.get_user_by_email = AsyncMock(return_value=test_user)
         mock_fs.get_institution_by_name = AsyncMock(return_value=existing_institution)
 
-        with patch('app.dependencies.auth.get_current_user_from_session') as mock_auth:
-            mock_auth.return_value = {"email": "admin@example.edu"}
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: test_user
 
-            response = client.post("/api/v1/users/onboarding", json={
-                "role": "institution",
-                "profile": {
-                    "institution_name": "Existing University",
-                    "contact_person": "New Admin",
-                    "region": "South India"
-                }
-            })
+        response = client.post("/api/v1/users/onboarding", json={
+            "role": "institution",
+            "profile": {
+                "institution_name": "Existing University",
+                "contact_person": "New Admin",
+                "region": "South India"
+            }
+        })
+
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
         assert response.status_code == 400
         assert "already exists" in response.json()["detail"]
@@ -148,17 +164,20 @@ class TestOnboardingMocks:
         test_user = User(
             user_id="test@example.com",
             email="test@example.com",
-            hashed_password="hashed",
+            
             onboarding_completed=True,
             role="student",
             profile={"name": "Test User", "age": "20"}
         )
         mock_fs.get_user_by_email = AsyncMock(return_value=test_user)
 
-        with patch('app.dependencies.auth.get_current_user_from_session') as mock_auth:
-            mock_auth.return_value = {"email": "test@example.com"}
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: test_user
 
-            response = client.get("/api/v1/users/profile")
+        response = client.get("/api/v1/users/profile")
+
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
         assert response.status_code == 200
         data = response.json()
@@ -173,14 +192,20 @@ class TestOnboardingMocks:
             Institution(
                 institution_id="inst_1",
                 institution_name="University A",
+                contact_person="Dr. A",
                 region="North India",
+                email="admin@univa.edu",
+                user_id="admin_1",
                 student_count=100,
                 active=True
             ),
             Institution(
                 institution_id="inst_2",
                 institution_name="College B",
+                contact_person="Dr. B",
                 region="South India",
+                email="admin@collegeb.edu",
+                user_id="admin_2",
                 student_count=50,
                 active=True
             )
@@ -197,14 +222,24 @@ class TestOnboardingMocks:
 
     def test_onboarding_validation_errors(self):
         """Test onboarding request validation"""
-        with patch('app.dependencies.auth.get_current_user_from_session') as mock_auth:
-            mock_auth.return_value = {"email": "test@example.com"}
+        # Create a mock user for auth
+        mock_user = User(
+            user_id="test@example.com",
+            email="test@example.com",
+            onboarding_completed=False
+        )
+        
+        # Override the auth dependency
+        app.dependency_overrides[get_current_user_from_session] = lambda: mock_user
 
-            # Missing profile data
-            response = client.post("/api/v1/users/onboarding", json={
-                "role": "student"
+        # Missing profile data
+        response = client.post("/api/v1/users/onboarding", json={
+            "role": "student"
                 # Missing profile
             })
+
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
         assert response.status_code == 422  # Validation error
 

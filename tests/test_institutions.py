@@ -50,7 +50,10 @@ class TestInstitutionManagement:
         existing_institution = Institution(
             institution_id="existing_123",
             institution_name="Existing University",
-            region="South India"
+            contact_person="Dr. Existing",
+            region="South India",
+            email="admin@existing.edu",
+            user_id="admin_123"
         )
         mock_fs.get_institution_by_name = AsyncMock(return_value=existing_institution)
 
@@ -68,21 +71,30 @@ class TestInstitutionManagement:
             Institution(
                 institution_id="inst_1",
                 institution_name="University A",
+                contact_person="Dr. A",
                 region="North India",
+                email="admin@univa.edu",
+                user_id="admin_1",
                 student_count=150,
                 active=True
             ),
             Institution(
                 institution_id="inst_2", 
                 institution_name="College B",
+                contact_person="Dr. B",
                 region="South India",
+                email="admin@collegeb.edu",
+                user_id="admin_2",
                 student_count=75,
                 active=True
             ),
             Institution(
                 institution_id="inst_3",
                 institution_name="Institute C",
+                contact_person="Dr. C",
                 region="West India",
+                email="admin@instc.edu",
+                user_id="admin_3",
                 student_count=0,
                 active=False
             )
@@ -104,7 +116,10 @@ class TestInstitutionManagement:
         institution = Institution(
             institution_id="inst_123",
             institution_name="Test University",
+            contact_person="Dr. Test",
             region="North India",
+            email="admin@testuniv.edu",
+            user_id="admin_123",
             student_count=50
         )
         
@@ -164,7 +179,10 @@ class TestInstitutionRegions:
             institution = Institution(
                 institution_id=f"test_{region.replace(' ', '_').lower()}",
                 institution_name=f"University of {region}",
-                region=region
+                contact_person=f"Dr. {region}",
+                region=region,
+                email=f"admin@{region.replace(' ', '').lower()}.edu",
+                user_id=f"admin_{region.replace(' ', '_').lower()}"
             )
             assert institution.region == region
 
@@ -174,17 +192,26 @@ class TestInstitutionRegions:
             Institution(
                 institution_id="north_1",
                 institution_name="North University 1",
-                region="North India"
+                contact_person="Dr. North 1",
+                region="North India",
+                email="admin@north1.edu",
+                user_id="admin_north_1"
             ),
             Institution(
                 institution_id="north_2", 
                 institution_name="North University 2",
-                region="North India"
+                contact_person="Dr. North 2",
+                region="North India",
+                email="admin@north2.edu",
+                user_id="admin_north_2"
             ),
             Institution(
                 institution_id="south_1",
-                institution_name="South University 1", 
-                region="South India"
+                institution_name="South University 1",
+                contact_person="Dr. South 1", 
+                region="South India",
+                email="admin@south1.edu",
+                user_id="admin_south_1"
             )
         ]
         
@@ -209,7 +236,10 @@ class TestInstitutionStudentTracking:
         institution = Institution(
             institution_id="new_inst",
             institution_name="New Institution",
-            region="Central India"
+            contact_person="Dr. New",
+            region="Central India",
+            email="admin@newinst.edu",
+            user_id="admin_new"
         )
         
         assert institution.student_count == 0
@@ -218,8 +248,11 @@ class TestInstitutionStudentTracking:
         """Test that new institutions are active by default"""
         institution = Institution(
             institution_id="active_inst",
-            institution_name="Active Institution", 
-            region="West India"
+            institution_name="Active Institution",
+            contact_person="Dr. Active", 
+            region="West India",
+            email="admin@activeinst.edu",
+            user_id="admin_active"
         )
         
         assert institution.active is True
@@ -234,7 +267,6 @@ class TestInstitutionStudentTracking:
         student_user = User(
             user_id="student@example.com",
             email="student@example.com",
-            hashed_password="hashed",
             onboarding_completed=False
         )
 
@@ -242,7 +274,10 @@ class TestInstitutionStudentTracking:
         target_institution = Institution(
             institution_id="target_inst",
             institution_name="Target University",
+            contact_person="Dr. Target",
             region="North India",
+            email="admin@target.edu",
+            user_id="admin_target",
             student_count=100
         )
 

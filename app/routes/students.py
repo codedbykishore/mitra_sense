@@ -6,6 +6,10 @@ from app.models.schemas import (
 )
 from app.models.db_models import User
 from app.services.student_service import StudentService
+from app.services.firestore import FirestoreService
+from app.services.privacy_service import PrivacyService
+from app.services.logging_service import LoggingService
+from app.middleware.privacy_middleware import PrivacyMiddleware
 from app.dependencies.auth import get_current_user_from_session
 import logging
 
@@ -13,6 +17,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 student_service = StudentService()
+
+# Initialize privacy services
+firestore_service = FirestoreService()
+privacy_service = PrivacyService(firestore_service)
+logging_service = LoggingService(firestore_service)
+privacy_middleware = PrivacyMiddleware(privacy_service, logging_service)
 
 
 @router.get("/students", response_model=StudentsListResponse)
@@ -104,12 +114,21 @@ async def get_student_moods(
 ):
     """
     Get recent mood entries for a student.
-    Requires authentication.
+    Requires authentication and privacy check.
     """
     try:
         logger.info(
             f"User {current_user.user_id} requesting moods for "
             f"student {student_id} (limit: {limit})"
+        )
+        
+        # Check privacy flags and log access
+        await privacy_middleware.check_and_log_access(
+            target_user_id=student_id,
+            resource_type="moods",
+            action="view",
+            current_user=current_user.model_dump(),
+            metadata={"limit": str(limit)}
         )
         
         # Get mood entries
@@ -127,6 +146,9 @@ async def get_student_moods(
             total_count=len(moods)
         )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions from privacy middleware
+        raise
     except ValueError as e:
         logger.warning(f"Invalid request for getting moods: {e}")
         raise HTTPException(status_code=400, detail=str(e))

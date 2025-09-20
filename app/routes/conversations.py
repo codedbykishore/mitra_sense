@@ -2,6 +2,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.services.firestore import FirestoreService
 from app.services.conversation_service import ConversationService
+from app.services.privacy_service import PrivacyService
+from app.services.logging_service import LoggingService
+from app.middleware.privacy_middleware import PrivacyMiddleware
 from app.dependencies.auth import get_current_user_from_session
 from app.models.db_models import User
 from app.models.schemas import (
@@ -13,6 +16,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Initialize privacy services
+firestore_service = FirestoreService()
+privacy_service = PrivacyService(firestore_service)
+logging_service = LoggingService(firestore_service)
+privacy_middleware = PrivacyMiddleware(privacy_service, logging_service)
 
 
 @router.get("/conversations")

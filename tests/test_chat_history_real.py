@@ -4,6 +4,7 @@ Integration tests for chat history functionality with real Firestore.
 These tests require actual GCP credentials and will create/delete test data.
 """
 import pytest
+import pytest_asyncio
 from datetime import datetime, timezone
 from app.services.firestore import FirestoreService
 from app.models.db_models import User, Conversation
@@ -15,12 +16,12 @@ import asyncio
 class TestChatHistoryIntegration:
     """Integration tests with real Firestore database."""
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def firestore_service(self):
         """Create a real FirestoreService instance."""
         return FirestoreService()
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def test_user(self, firestore_service):
         """Create a test user and clean it up after the test."""
         user_id = f"test_chat_history_{uuid.uuid4().hex[:8]}"
@@ -43,7 +44,7 @@ class TestChatHistoryIntegration:
         except Exception:
             pass  # Ignore cleanup errors
 
-    @pytest.fixture
+    @pytest_asyncio.fixture
     async def test_conversation(self, firestore_service, test_user):
         """Create a test conversation and clean it up after the test."""
         conversation_id = f"test_conv_{uuid.uuid4().hex[:8]}"

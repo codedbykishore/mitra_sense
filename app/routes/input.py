@@ -5,6 +5,7 @@ from app.services.gemini_ai import GeminiService
 from app.services.rag_service import RAGService
 from app.services.firestore import FirestoreService
 from app.services.conversation_service import ConversationService
+from app.services.emotion_analysis import EmotionAnalysisService
 from typing import Optional, List, Dict, Any
 from app.config import Settings
 import uuid
@@ -58,6 +59,7 @@ gemini_service = GeminiService()
 rag_service = RAGService()
 firestore_service = FirestoreService()
 conversation_service = ConversationService()
+emotion_analysis_service = EmotionAnalysisService()
 
 
 def format_rag_context(rag_results: List[Dict[str, Any]]) -> str:
@@ -158,6 +160,26 @@ async def chat_endpoint(
             conversation_id, user_message_data
         )
 
+        # Perform automatic mood inference from the user's message
+        mood_inference = None
+        if user_id != "anonymous":  # Only for authenticated users
+            try:
+                mood_inference = await emotion_analysis_service.process_message_for_mood_inference(
+                    user_id=user_id,
+                    message_text=req.text,
+                    language=detected_language,
+                    conversation_id=conversation_id
+                )
+                
+                # Update emotion_score in the saved message if inference was successful
+                if mood_inference:
+                    user_message_data["metadata"]["emotion_score"] = json.dumps(mood_inference.get("emotions", {}))
+                    await firestore_service.save_message(conversation_id, user_message_data)
+                    
+            except Exception as e:
+                # Don't fail the chat if mood inference fails
+                print(f"Mood inference failed for user {user_id}: {e}")
+
         # Get relevant context from RAG
         rag_results = await rag_service.retrieve_with_metadata(
             query=req.text,
@@ -225,6 +247,7 @@ async def chat_endpoint(
                 for r in rag_results
             ],
             context_used=bool(rag_results),
+            mood_inference=mood_inference
         )
 
     except Exception as e:
