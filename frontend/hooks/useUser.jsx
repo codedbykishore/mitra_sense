@@ -18,7 +18,7 @@ export function useUser() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:8000/me", {
+        const res = await fetch("/me", {
           credentials: "include", // include session cookies
         })
 
@@ -35,10 +35,17 @@ export function useUser() {
               role: data.role,
               profile: data.profile,
             })
+          } else {
+            // User is not authenticated, clear user state
+            setUser(null)
           }
+        } else {
+          // Failed to fetch user, clear user state
+          setUser(null)
         }
       } catch (err) {
         console.error("Error fetching user:", err)
+        setUser(null)
       } finally {
         setLoading(false)
       }

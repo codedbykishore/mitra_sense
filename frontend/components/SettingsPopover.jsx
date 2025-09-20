@@ -12,7 +12,7 @@ export default function SettingsPopover({ children }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:8000/me", {
+        const res = await fetch("/me", {
           credentials: "include", // include session cookies
         })
 
@@ -25,10 +25,15 @@ export default function SettingsPopover({ children }) {
               picture: data.picture,
               plan: data.plan,
             })
+          } else {
+            setUser(null)
           }
+        } else {
+          setUser(null)
         }
       } catch (err) {
         console.error("Failed to fetch user:", err)
+        setUser(null)
       }
     }
 

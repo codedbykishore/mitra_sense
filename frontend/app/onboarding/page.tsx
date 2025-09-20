@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
 
+interface Institution {
+  institution_id: string;
+  institution_name: string;
+  region: string;
+  student_count: number;
+  active: boolean;
+}
+
 const REGIONS = [
   'North India',
   'South India', 
@@ -29,6 +37,7 @@ const LANGUAGES = [
 interface OnboardingFormData {
   role: 'student' | 'institution';
   profile: Record<string, string>;
+  institution_id?: string;
 }
 
 export default function OnboardingPage() {
@@ -39,6 +48,8 @@ export default function OnboardingPage() {
     role: 'student',
     profile: {}
   });
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [loadingInstitutions, setLoadingInstitutions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,11 +66,47 @@ export default function OnboardingPage() {
     }
   }, [user, loading, router]);
 
+  // Fetch institutions on component mount since default role is student
+  useEffect(() => {
+    if (!loading && user) {
+      fetchInstitutions();
+    }
+  }, [loading, user]);
+
+  // Fetch institutions for student role
+  const fetchInstitutions = async () => {
+    setLoadingInstitutions(true);
+    try {
+      const response = await fetch('/api/v1/users/institutions', {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setInstitutions(data.institutions || []);
+      } else {
+        console.error('Failed to fetch institutions. Status:', response.status);
+        setInstitutions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching institutions:', error);
+      setInstitutions([]);
+    } finally {
+      setLoadingInstitutions(false);
+    }
+  };
+
   const handleRoleChange = (role: 'student' | 'institution') => {
     setFormData({
       role,
-      profile: {} // Reset profile when role changes
+      profile: {}, // Reset profile when role changes
+      institution_id: undefined // Reset institution selection
     });
+
+    // Fetch institutions when student role is selected
+    if (role === 'student' && institutions.length === 0) {
+      fetchInstitutions();
+    }
   };
 
   const handleProfileChange = (key: string, value: string) => {
@@ -75,7 +122,9 @@ export default function OnboardingPage() {
   const validateForm = (): boolean => {
     if (formData.role === 'student') {
       const required = ['name', 'age', 'region', 'language_preference'];
-      return required.every(field => formData.profile[field]?.trim());
+      const profileValid = required.every(field => formData.profile[field]?.trim());
+      // Institution selection is optional (can be "No Institution")
+      return profileValid;
     } else {
       const required = ['institution_name', 'contact_person', 'region'];
       return required.every(field => formData.profile[field]?.trim());
@@ -238,6 +287,40 @@ export default function OnboardingPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Institution (Optional)
+                </label>
+                {loadingInstitutions ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                    Loading institutions...
+                  </div>
+                ) : (
+                  <select
+                    value={formData.institution_id || ''}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      institution_id: e.target.value || undefined
+                    }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="">No Institution</option>
+                    {institutions.length === 0 ? (
+                      <option value="" disabled>No institutions available</option>
+                    ) : (
+                      institutions.map((institution) => (
+                        <option key={institution.institution_id} value={institution.institution_id}>
+                          {institution.institution_name} ({institution.region})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Select your institution if it's listed, or choose "No Institution" if not available.
+                </p>
               </div>
             </div>
           )}

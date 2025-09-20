@@ -288,8 +288,78 @@ async rewrites() {
 - **Crisis Detection**: `app/routes/crisis.py` + `app/services/crisis_service.py`  
 - **Voice Pipeline**: `app/routes/voice.py` + `app/services/google_speech.py` (COMPLETE)
 - **Voice Frontend**: `frontend/components/voice/VoiceCompanion.tsx` (COMPLETE)
-- **Authentication**: `app/routes/auth.py` with Google OAuth + JWT
+- **Authentication**: `app/routes/auth.py` with Google OAuth + JWT session management (COMPLETE)
+- **User Onboarding Flow**: Complete student/institution onboarding system (COMPLETE)
+- **Institution Management**: Global institutions collection with validation (COMPLETE)
 - **AI Integration**: `app/services/gemini_ai.py` with Vertex AI RAG
+
+### ✅ Authentication & User Management (COMPLETE)
+
+- **Google OAuth Integration**: Full OAuth flow via `app/routes/auth.py`
+  - `/google/login` - Initiates Google OAuth flow
+  - `/auth/google/callback` - Handles OAuth callback and user creation
+  - `/me` - Returns current user session info with onboarding status
+  - `/logout` - Clears user session
+- **Session Management**: Starlette sessions for persistent login state
+- **User Dependencies**: `app/dependencies/auth.py` with `get_current_user_from_session()`
+- **Frontend Auth Components**: `Login.jsx`, `Logout.jsx`, `useUser.ts` hook
+- **Auto-redirect Logic**: New users → onboarding, existing users → main app
+
+### ✅ User Onboarding System (COMPLETE)
+
+- **Onboarding Frontend**: `frontend/app/onboarding/page.tsx`
+  - Student role: Name, Age, Region, Language preference, Institution selection
+  - Institution role: Institution name, Contact person, Region
+  - Dynamic institution dropdown populated from Firestore
+  - Form validation and error handling
+  - Responsive Tailwind UI with loading states
+- **Onboarding Backend**: `app/routes/users.py`
+  - `/api/v1/users/onboarding` - Completes user onboarding
+  - `/api/v1/users/profile` - Gets user profile and onboarding status
+  - `/api/v1/users/institutions` - Lists all active institutions
+- **Institution Persistence**: Global `institutions` collection in Firestore
+  - Unique institution name validation
+  - Student count tracking
+  - Region-based organization
+- **User Context Integration**: `useUser.tsx` tracks onboarding status and role
+
+### ✅ Voice Integration System (COMPLETE)
+
+- **Complete Voice Pipeline**: Record → Upload → AI Process → TTS → Playback
+- **VoiceCompanion Integration**: Fully integrated into ChatPane with push-to-talk
+- **Cultural Voice Support**: Hindi/English detection and TTS response
+- **Crisis Detection**: Real-time voice emotion analysis with emergency escalation
+- **Accessibility Features**: Screen reader support, keyboard navigation, ARIA labels
+- **Error Recovery**: Comprehensive fallback system for all failure scenarios
+- **Hydration Safety**: Client-side rendering with proper SSR compatibility
+
+### ✅ Database & Firestore Integration (COMPLETE)
+
+- **FirestoreService**: `app/services/firestore.py`
+  - User CRUD operations with async patterns
+  - Institution management with student count tracking
+  - Conversation and message persistence
+  - Crisis event logging for follow-up care
+- **Data Models**: `app/models/db_models.py`
+  - User model with onboarding fields (role, profile, institution_id)
+  - Institution model with validation and tracking
+  - Conversation and Message models for chat history
+- **Schema Validation**: `app/models/schemas.py`
+  - OnboardingRequest/Response with role-based validation
+  - InstitutionsListResponse for frontend consumption
+  - Comprehensive type safety with Pydantic
+
+### ✅ Technical Achievements Completed
+
+- **Next.js App Router Architecture**: Proper server/client component separation
+- **Hydration Issue Resolution**: All SSR/client-side rendering conflicts resolved
+- **API Proxy Configuration**: Complete Next.js → FastAPI proxy setup working
+- **TypeScript Integration**: Full type safety across frontend and backend
+- **Environment Configuration**: Development/production environment handling
+- **Testing Infrastructure**: pytest with integration/unit test separation
+- **Google Cloud Integration**: TTS, STT, Vertex AI RAG fully operational
+- **Cultural Language Support**: Hindi/English code-switching detection
+- **Crisis Safety Systems**: Multi-level risk assessment with Tele MANAS integration
 
 ### Essential Dependencies
 
@@ -298,15 +368,22 @@ async rewrites() {
 google-cloud-aiplatform==1.111.0  # Vertex AI integration
 vertexai                          # Gemini model access  
 langdetect==1.0.9                 # Language detection
+google-cloud-texttospeech         # TTS integration
+google-cloud-speech               # STT integration
 
 # Backend framework
 fastapi                           # Async API framework
 pydantic-settings                 # Configuration management
+google-cloud-firestore           # Database operations
+authlib                          # Google OAuth integration
+python-jose[cryptography]        # JWT token handling
+starlette                        # Session management
 
 # Frontend (in frontend/package.json)
 "next": "14.2.32"                # Next.js with App Router
 "react": "^19.1.1"               # React 19 with TypeScript
 "tailwindcss": "^4.1.12"        # Styling
+"@radix-ui/react-*"             # Accessible UI components
 ```
 
 ## Development Guidelines

@@ -1,6 +1,11 @@
 # app/routes/users.py
+import uuid
 from fastapi import APIRouter, HTTPException, Depends
-from app.models.schemas import OnboardingRequest, OnboardingResponse
+from app.models.schemas import (
+    OnboardingRequest, OnboardingResponse,
+    InstitutionsListResponse, InstitutionInfo
+)
+from app.models.db_models import Institution
 from app.services.firestore import FirestoreService
 from app.dependencies.auth import get_current_user_from_session
 
@@ -34,11 +39,56 @@ async def complete_onboarding(
                 detail="Onboarding already completed"
             )
 
+        # Handle institution role
+        if request.role.value == "institution":
+            institution_name = request.profile.get("institution_name")
+            if not institution_name:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Institution name is required"
+                )
+
+            # Check if institution name already exists (case-insensitive)
+            existing_institution = await fs.get_institution_by_name(
+                institution_name.strip()
+            )
+            if existing_institution:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Institution name already exists"
+                )
+
+            # Create new institution
+            institution_id = str(uuid.uuid4())
+            institution = Institution(
+                institution_id=institution_id,
+                institution_name=institution_name.strip(),
+                contact_person=request.profile.get("contact_person", ""),
+                region=request.profile.get("region", ""),
+                email=user_email,
+                user_id=user.user_id
+            )
+            await fs.create_institution(institution)
+
+        # Handle student role
+        elif request.role.value == "student":
+            # Validate institution_id if provided
+            if request.institution_id:
+                institution = await fs.get_institution(request.institution_id)
+                if not institution:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Selected institution not found"
+                    )
+                # Increment student count
+                await fs.increment_student_count(request.institution_id)
+
         # Complete onboarding
         await fs.complete_onboarding(
             user.user_id,
             request.role.value,
-            request.profile
+            request.profile,
+            request.institution_id
         )
 
         return OnboardingResponse(
@@ -87,3 +137,32 @@ async def get_user_profile(
             status_code=500,
             detail=f"Failed to get user profile: {str(e)}"
         )
+
+
+@router.get("/institutions", response_model=InstitutionsListResponse)
+async def get_institutions():
+    """Get list of all active institutions for student onboarding."""
+    try:
+        institutions = await fs.list_institutions()
+        
+        # Convert to response format
+        institution_list = [
+            InstitutionInfo(
+                institution_id=inst.institution_id,
+                institution_name=inst.institution_name,
+                region=inst.region,
+                student_count=inst.student_count,
+                active=inst.active
+            ) for inst in institutions
+        ]
+
+        return InstitutionsListResponse(institutions=institution_list)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get institutions: {str(e)}"
+        )
+
+
+

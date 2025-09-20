@@ -3,8 +3,8 @@ import { LogIn } from "lucide-react"
 
 export default function LoginButton() {
   const handleLogin = () => {
-    // Change this to your FastAPI backend
-    window.location.href = "http://localhost:8000/google/login"
+    // Use proxied endpoint for Google login
+    window.location.href = "/google/login"
   }
 
   return (

@@ -118,9 +118,13 @@ class OnboardingRequest(BaseModel):
         ...,
         description="Profile data based on role"
     )
+    institution_id: Optional[str] = Field(
+        None,
+        description="Institution ID for students (null for No Institution)"
+    )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "examples": [
                 {
                     "role": "student",
@@ -129,7 +133,8 @@ class OnboardingRequest(BaseModel):
                         "age": "20",
                         "region": "North India",
                         "language_preference": "hi-IN"
-                    }
+                    },
+                    "institution_id": "inst_123"
                 },
                 {
                     "role": "institution",
@@ -147,3 +152,15 @@ class OnboardingResponse(BaseModel):
     success: bool
     message: str
     user_profile: Dict[str, str] = Field(default_factory=dict)
+
+
+class InstitutionInfo(BaseModel):
+    institution_id: str
+    institution_name: str
+    region: str
+    student_count: int = 0
+    active: bool = True
+
+
+class InstitutionsListResponse(BaseModel):
+    institutions: List[InstitutionInfo] = Field(default_factory=list)

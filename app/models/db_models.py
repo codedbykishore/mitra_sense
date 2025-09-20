@@ -20,6 +20,9 @@ class User(BaseModel):
     # Role-specific profile fields
     profile: Dict[str, str] = Field(default_factory=dict)
     
+    # Institution relationship (for students)
+    institution_id: Optional[str] = None  # null if "No Institution"
+    
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
@@ -28,6 +31,26 @@ class User(BaseModel):
     )
     privacy_settings: Dict[str, bool] = Field(
         default_factory=lambda: {"share_data": False}
+    )
+
+
+class Institution(BaseModel):
+    institution_id: str
+    institution_name: str  # Must be unique
+    contact_person: str
+    region: str
+    email: str  # Institution's email (from the user who registered it)
+    user_id: str  # Reference to the User who registered this institution
+    
+    # Stats and metadata
+    student_count: int = Field(default=0)
+    active: bool = Field(default=True)
+    
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
     )
 
 
