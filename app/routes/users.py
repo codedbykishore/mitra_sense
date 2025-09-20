@@ -5,7 +5,7 @@ from app.models.schemas import (
     OnboardingRequest, OnboardingResponse,
     InstitutionsListResponse, InstitutionInfo
 )
-from app.models.db_models import Institution
+from app.models.db_models import Institution, User
 from app.services.firestore import FirestoreService
 from app.dependencies.auth import get_current_user_from_session
 
@@ -17,20 +17,19 @@ fs = FirestoreService()
 @router.post("/onboarding", response_model=OnboardingResponse)
 async def complete_onboarding(
     request: OnboardingRequest,
-    current_user: dict = Depends(get_current_user_from_session)
+    current_user: User = Depends(get_current_user_from_session)
 ):
     """Complete user onboarding with role and profile information."""
     try:
-        user_email = current_user.get("email")
+        # current_user is now a User object, not a dictionary
+        user_email = current_user.email
         if not user_email:
             raise HTTPException(
                 status_code=401, detail="User not authenticated"
             )
 
-        # Get the user from Firestore
-        user = await fs.get_user_by_email(user_email)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        # We already have the user object from authentication
+        user = current_user
 
         # Check if onboarding is already completed
         if user.onboarding_completed:
@@ -108,19 +107,19 @@ async def complete_onboarding(
 
 @router.get("/profile")
 async def get_user_profile(
-    current_user: dict = Depends(get_current_user_from_session)
+    current_user: User = Depends(get_current_user_from_session)
 ):
     """Get current user's profile and onboarding status."""
     try:
-        user_email = current_user.get("email")
+        # current_user is now a User object, not a dictionary
+        user_email = current_user.email
         if not user_email:
             raise HTTPException(
                 status_code=401, detail="User not authenticated"
             )
 
-        user = await fs.get_user_by_email(user_email)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        # We already have the user object from authentication
+        user = current_user
 
         return {
             "onboarding_completed": user.onboarding_completed,

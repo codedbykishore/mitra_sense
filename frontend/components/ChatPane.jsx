@@ -89,7 +89,7 @@ function ThinkingMessage({ onPause }) {
 }
 
 const ChatPane = forwardRef(function ChatPane(
-  { conversation, onSend, onEditMessage, onResendMessage, isThinking, onPauseThinking },
+  { conversation, onSend, onEditMessage, onResendMessage, onLoadMore, isThinking, onPauseThinking, loadingHistory, historyError },
   ref,
 ) {
   const [editingId, setEditingId] = useState(null)
@@ -414,6 +414,48 @@ const ChatPane = forwardRef(function ChatPane(
       )}
 
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-8">
+        {/* Chat History Error Display */}
+        {historyError && (
+          <div
+            className="mx-auto mb-4 max-w-md rounded-lg border border-red-200 bg-red-50 p-4 shadow-sm dark:border-red-800 dark:bg-red-900/20"
+            role="alert"
+            aria-live="polite"
+          >
+            <div className="flex items-start">
+              <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" aria-hidden="true" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                  Chat History Error
+                </h3>
+                <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                  {historyError}
+                </p>
+                <div className="mt-2">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="text-xs text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 focus:outline-none focus:underline"
+                    aria-label="Refresh page to retry loading chat history"
+                  >
+                    Refresh Page
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat History Loading Indicator */}
+        {loadingHistory && (
+          <div className="mx-auto mb-4 max-w-md text-center">
+            <div className="flex items-center justify-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
+              <span className="text-sm text-blue-800 dark:text-blue-200">
+                Loading chat history...
+              </span>
+            </div>
+          </div>
+        )}
+
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
             <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-2xl font-bold">
@@ -431,6 +473,36 @@ const ChatPane = forwardRef(function ChatPane(
           </div>
         ) : (
           <>
+            {/* Load More Button */}
+            {conversation?.hasMore && messages.length > 0 && (
+              <div className="text-center mb-6">
+                <button
+                  onClick={onLoadMore}
+                  disabled={loadingHistory}
+                  className={`
+                    inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-colors
+                    ${loadingHistory 
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-600'
+                      : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40'
+                    }
+                  `}
+                  aria-label="Load more messages from chat history"
+                >
+                  {loadingHistory ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      Load More Messages
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
             {messages.map((m) => (
               <div key={m.id} className="space-y-2">
                 {editingId === m.id ? (

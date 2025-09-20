@@ -55,18 +55,25 @@ class Institution(BaseModel):
     )
 
 
+class Message(BaseModel):
+    message_id: str
+    conversation_id: str
+    sender_id: str  # user_id or "ai"
+    text: str
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+    metadata: Dict[str, Optional[str]] = Field(default_factory=dict)
+    mood_score: Optional[Dict[str, str]] = None  # mood details
+
+
 class Conversation(BaseModel):
     conversation_id: str
-    user_id: str
-    messages: List[Dict] = Field(default_factory=list)
-    emotion_analysis: Dict[str, float] = Field(default_factory=dict)
-    crisis_score: float = 0.0
-    cultural_context: Dict[str, str] = Field(default_factory=dict)
-    rag_sources: List[str] = Field(default_factory=list)
+    participants: List[str] = Field(default_factory=list)  # user_ids
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
-    updated_at: datetime = Field(
+    last_active_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
     )
 

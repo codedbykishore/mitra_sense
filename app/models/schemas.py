@@ -164,3 +164,38 @@ class InstitutionInfo(BaseModel):
 
 class InstitutionsListResponse(BaseModel):
     institutions: List[InstitutionInfo] = Field(default_factory=list)
+
+
+class ConversationInfo(BaseModel):
+    """Schema for conversation metadata."""
+    conversation_id: str
+    participants: List[str] = Field(default_factory=list)
+    created_at: Optional[str] = None
+    last_active_at: Optional[str] = None
+    participant_count: int = 0
+
+
+class ConversationsListResponse(BaseModel):
+    """Schema for listing user conversations."""
+    conversations: List[ConversationInfo] = Field(default_factory=list)
+    total_count: int = 0
+
+
+class MessageInfo(BaseModel):
+    """Schema for chat message data."""
+    message_id: str
+    conversation_id: str
+    sender_id: str
+    text: str
+    timestamp: str
+    metadata: Dict = Field(default_factory=dict)
+    mood_score: Optional[Dict[str, str]] = None
+
+
+class ConversationMessagesResponse(BaseModel):
+    """Schema for conversation messages with pagination."""
+    conversation_id: str
+    messages: List[MessageInfo] = Field(default_factory=list)
+    message_count: int = 0
+    limit: int = 50
+    has_more: bool = False

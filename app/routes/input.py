@@ -1,10 +1,18 @@
 # app/routes/input.py
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from app.services.gemini_ai import GeminiService
 from app.services.rag_service import RAGService
+from app.services.firestore import FirestoreService
 from typing import Optional, List, Dict, Any
 from app.config import Settings
+import uuid
+from datetime import datetime, timezone
+import json
+from langdetect import detect, LangDetectException, DetectorFactory
+
+# Ensure consistent language detection results
+DetectorFactory.seed = 0
 
 router = APIRouter()
 
@@ -31,6 +39,7 @@ class ChatResponse(BaseModel):
 
 gemini_service = GeminiService()
 rag_service = RAGService()
+firestore_service = FirestoreService()
 
 
 def format_rag_context(rag_results: List[Dict[str, Any]]) -> str:
@@ -46,8 +55,57 @@ def format_rag_context(rag_results: List[Dict[str, Any]]) -> str:
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(
+    req: ChatRequest,
+    request: Request
+):
     try:
+        # Get current user from session (optional for backwards compatibility)
+        current_user = None
+        user_id = "anonymous"
+        
+        if hasattr(request, 'session') and request.session:
+            current_user = request.session.get("user")
+            if current_user and isinstance(current_user, dict):
+                user_id = (
+                    current_user.get("user_id") or
+                    current_user.get("email", "anonymous")
+                )
+            elif current_user:
+                # Handle case where user might be a string or other format
+                user_id = str(current_user)
+        
+        # Create or get conversation for the user (including anonymous)
+        conversation_id = await (
+            firestore_service.create_or_update_conversation(user_id)
+        )
+
+        # Detect language from user input
+        detected_language = req.language
+        try:
+            detected_language = detect(req.text)
+        except LangDetectException:
+            detected_language = "en"
+
+        # Save user message to Firestore
+        user_message_id = str(uuid.uuid4())
+        user_message_data = {
+            "message_id": user_message_id,
+            "conversation_id": conversation_id,
+            "sender_id": user_id,
+            "text": req.text,
+            "timestamp": datetime.now(timezone.utc),
+            "metadata": {
+                "source": "user",
+                "language": detected_language,
+                "embedding_id": None,
+                "emotion_score": "{}"
+            }
+        }
+        await firestore_service.save_message(
+            conversation_id, user_message_data
+        )
+
         # Get relevant context from RAG
         rag_results = await rag_service.retrieve_with_metadata(
             query=req.text,
@@ -81,9 +139,26 @@ async def chat_endpoint(req: ChatRequest):
         )
 
         # Format the response with sources
-        # The response from process_cultural_conversation is just the text,
-        # so we need to format it with the sources
         response_text = result if isinstance(result, str) else str(result)
+
+        # Save AI response to Firestore
+        ai_message_id = str(uuid.uuid4())
+        ai_message_data = {
+            "message_id": ai_message_id,
+            "conversation_id": conversation_id,
+            "sender_id": "ai",
+            "text": response_text,
+            "timestamp": datetime.now(timezone.utc),
+            "metadata": {
+                "source": "ai",
+                "language": detected_language,
+                "embedding_id": None,
+                "emotion_score": "{}"
+            }
+        }
+        await firestore_service.save_message(
+            conversation_id, ai_message_data
+        )
 
         return ChatResponse(
             response=response_text,

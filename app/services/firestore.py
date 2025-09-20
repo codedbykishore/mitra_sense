@@ -2,7 +2,7 @@
 from typing import Optional, List
 from google.cloud import firestore
 from app.models.db_models import (
-    User, Conversation, PeerCircle, CrisisAlert, Institution
+    User, Conversation, Message, PeerCircle, CrisisAlert, Institution
 )
 from app.config import settings
 import logging
@@ -96,6 +96,153 @@ class FirestoreService:
     ) -> None:
         ref = self.db.collection("conversations").document(conversation_id)
         await ref.update({"messages": firestore.ArrayUnion([message])})
+
+    async def create_or_update_conversation(self, user_id: str) -> str:
+        """Create new conversation if none exists or return active one."""
+        from datetime import datetime, timezone
+        import uuid
+        
+        # Check for existing active conversation for user
+        conversations_ref = self.db.collection("conversations")
+        query = conversations_ref.where(
+            "participants", "array_contains", user_id
+        )
+        
+        # Get the most recent conversation
+        recent_conversation = None
+        async for doc in query.stream():
+            conversation_data = doc.to_dict()
+            last_active = conversation_data.get("last_active_at")
+            if (not recent_conversation or
+                    last_active > recent_conversation.get("last_active_at")):
+                recent_conversation = conversation_data
+                recent_conversation["conversation_id"] = doc.id
+        
+        if recent_conversation:
+            # Update last_active_at and return existing conversation
+            conversation_id = recent_conversation["conversation_id"]
+            await self.update_conversation(conversation_id, {
+                "last_active_at": datetime.now(timezone.utc)
+            })
+            return conversation_id
+        
+        # Create new conversation
+        conversation_id = str(uuid.uuid4())
+        conversation = Conversation(
+            conversation_id=conversation_id,
+            participants=[user_id],
+            created_at=datetime.now(timezone.utc),
+            last_active_at=datetime.now(timezone.utc)
+        )
+        
+        await self.store_conversation(conversation)
+        return conversation_id
+
+    async def save_message(
+        self, conversation_id: str, message_data: dict
+    ) -> None:
+        """Save message under conversations/{conversation_id}/messages."""
+        from datetime import datetime, timezone
+        
+        # Update conversation's last_active_at
+        await self.update_conversation(conversation_id, {
+            "last_active_at": datetime.now(timezone.utc)
+        })
+        
+        # Save message to subcollection
+        message_ref = (
+            self.db.collection("conversations")
+            .document(conversation_id)
+            .collection("messages")
+            .document(message_data["message_id"])
+        )
+        await message_ref.set(message_data)
+
+    async def get_messages(
+        self, conversation_id: str, limit: int = 50
+    ) -> List[dict]:
+        """
+        Get messages for a conversation, ordered by timestamp ascending.
+        
+        Args:
+            conversation_id: The ID of the conversation
+            limit: Maximum number of messages to return
+            
+        Returns:
+            List of message dictionaries ordered by timestamp (oldest first)
+        """
+        try:
+            messages_ref = (
+                self.db.collection("conversations")
+                .document(conversation_id)
+                .collection("messages")
+            )
+            
+            # Order by timestamp ascending (oldest first) and limit results
+            query = messages_ref.order_by("timestamp").limit(limit)
+            
+            messages = []
+            async for doc in query.stream():
+                message_data = doc.to_dict()
+                messages.append(message_data)
+            
+            logger.info(
+                f"Retrieved {len(messages)} messages for "
+                f"conversation {conversation_id}"
+            )
+            return messages
+            
+        except Exception as e:
+            logger.error(
+                f"Error retrieving messages for "
+                f"conversation {conversation_id}: {e}"
+            )
+            return []
+
+    async def get_user_conversations(self, user_id: str) -> List[dict]:
+        """
+        Get conversations where user_id is a participant,
+        sorted by last_active_at descending.
+        
+        Args:
+            user_id: The ID of the user
+            
+        Returns:
+            List of conversation dictionaries sorted by last activity
+            (newest first)
+        """
+        try:
+            conversations_ref = self.db.collection("conversations")
+            
+            # Query conversations where user_id is in participants array
+            query = conversations_ref.where(
+                "participants", "array_contains", user_id
+            )
+            
+            conversations = []
+            async for doc in query.stream():
+                conversation_data = doc.to_dict()
+                # Add the document ID as conversation_id for easier access
+                conversation_data["conversation_id"] = doc.id
+                conversations.append(conversation_data)
+            
+            # Sort by last_active_at descending (newest first)
+            conversations.sort(
+                key=lambda x: x.get("last_active_at", x.get("created_at")),
+                reverse=True
+            )
+            
+            logger.info(
+                f"Retrieved {len(conversations)} conversations for "
+                f"user {user_id}"
+            )
+            return conversations
+            
+        except Exception as e:
+            logger.error(
+                f"Error retrieving conversations for user {user_id}: {e}"
+            )
+            return []
 
     # ---------- PEER CIRCLE ----------
     async def create_peer_circle(self, circle: PeerCircle) -> None:

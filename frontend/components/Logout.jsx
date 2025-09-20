@@ -1,6 +1,7 @@
 "use client"
 import { LogOut } from "lucide-react"
 import { useState } from "react"
+import { apiService } from '../lib/api'
 
 export default function LogoutButton() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -11,6 +12,10 @@ export default function LogoutButton() {
     setIsLoggingOut(true)
     
     try {
+      // Clear all cached data before logout
+      apiService.clearCacheByPattern('conversations_')
+      apiService.clearCacheByPattern('messages_')
+      
       // Call FastAPI logout endpoint via Next.js proxy
       const response = await fetch("/logout", {
         method: "GET",
@@ -22,6 +27,9 @@ export default function LogoutButton() {
       window.location.href = "/"
     } catch (err) {
       console.error("Logout failed:", err)
+      // Clear cache even on error
+      apiService.clearCacheByPattern('conversations_')
+      apiService.clearCacheByPattern('messages_')
       // Force reload even if there's a network error
       window.location.href = "/"
     }

@@ -9,6 +9,7 @@ import GhostIconButton from "./GhostIconButton"
 import ThemeToggle from "./ThemeToggle"
 import { INITIAL_CONVERSATIONS, INITIAL_TEMPLATES, INITIAL_FOLDERS } from "./mockData"
 import { useUser } from "@/hooks/useUser"
+import { apiService } from "@/lib/api"
 
 export default function AIAssistantUI() {
   // Initialize with safe defaults to prevent hydration mismatch
@@ -113,6 +114,11 @@ export default function AIAssistantUI() {
 
   const [isThinking, setIsThinking] = useState(false)
   const [thinkingConvId, setThinkingConvId] = useState(null)
+  
+  // Chat history loading state
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyError, setHistoryError] = useState(null)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
 
   useEffect(() => {
     const onKey = (e) => {
@@ -133,10 +139,83 @@ export default function AIAssistantUI() {
     return () => window.removeEventListener("keydown", onKey)
   }, [sidebarOpen, conversations])
 
+  // Load chat history when user logs in
   useEffect(() => {
-    // Don't automatically create a chat - let users start fresh
-    // They can click "New Chat" when they're ready to begin
-  }, [])
+    async function loadUserChatHistory() {
+      // Only load history if user is authenticated and we haven't loaded it yet
+      if (!user || loading || historyLoaded) return;
+
+      setLoadingHistory(true);
+      setHistoryError(null);
+
+      try {
+        // Check if we have cached conversations first
+        const cachedKey = `mitra_chat_last_conversation_${user.email}`;
+        const cachedConversationId = localStorage.getItem(cachedKey);
+        
+        console.log('🔍 Checking for cached conversation ID:', cachedConversationId);
+
+        // Load ALL conversations for the user
+        const conversationsData = await apiService.getConversations();
+        
+        if (conversationsData.conversations && conversationsData.conversations.length > 0) {
+          // Transform all conversations to UI format
+          const loadedConversations = await Promise.all(
+            conversationsData.conversations.map(async (conv) => {
+              // Load messages for each conversation
+              const historyData = await apiService.loadChatHistory(conv.conversation_id, 10);
+              
+              return {
+                id: conv.conversation_id,
+                title: conv.title || (historyData.messages.length > 0 
+                  ? historyData.messages[0].content.slice(0, 30) + "..." 
+                  : "Chat"),
+                updatedAt: conv.updated_at || new Date().toISOString(),
+                messageCount: historyData.messageCount,
+                preview: historyData.messages.length > 0 
+                  ? historyData.messages[historyData.messages.length - 1].content.slice(0, 80)
+                  : "Previous conversation",
+                pinned: false,
+                folder: "Mental Health",
+                messages: historyData.messages,
+                hasMore: historyData.hasMore,
+              };
+            })
+          );
+
+          // Sort conversations by updated_at (newest first)
+          loadedConversations.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+          // Set all conversations and select the most recent one
+          setConversations(loadedConversations);
+          const latestConversation = loadedConversations[0];
+          setSelectedId(latestConversation.id);
+          
+          // Cache the latest conversation ID for this user
+          localStorage.setItem(cachedKey, latestConversation.id);
+          
+          const totalMessages = loadedConversations.reduce((total, conv) => total + conv.messages.length, 0);
+          console.log(`✅ Loaded ${loadedConversations.length} conversations with ${totalMessages} total messages`);
+        } else {
+          // No previous conversations - start with empty state  
+          setConversations([]);
+          console.log("📝 No previous conversations found");
+        }
+        
+        setHistoryLoaded(true);
+      } catch (error) {
+        console.error('❌ Error loading chat history:', error);
+        setHistoryError(error.message || 'Failed to load chat history');
+        
+        // Fall back to empty conversations on error
+        setConversations([]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    }
+
+    loadUserChatHistory();
+  }, [user, loading, historyLoaded])
 
   const filtered = useMemo(() => {
     if (!query.trim()) return conversations
@@ -209,67 +288,26 @@ export default function AIAssistantUI() {
     setThinkingConvId(convId)
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/input/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: content,
-          context: {},
-          language: "en",
-          region: null,
-          max_rag_results: 3,
-        }),
+      // Use the new API service for cleaner error handling
+      const data = await apiService.sendChatMessage({
+        text: content,
+        context: {},
+        language: "en",
+        region: null,
+        max_rag_results: 3,
       })
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      // Debug: Log the API response
+      console.log("🔍 AIAssistantUI - Full API response:", JSON.stringify(data, null, 2))
+      console.log("🔍 AIAssistantUI - data.response:", data.response)
+      console.log("🔍 AIAssistantUI - Type of data.response:", typeof data.response)
 
-      const data = await res.json()
-
-      // Debug: Log the raw response to see what we're getting
-      console.log("Raw API response:", data)
-
-      // Extract clean text response - handle the stringified dict format
-      let responseText = ""
-
-      console.log("Response type:", typeof data.response)
-      console.log("Response content:", data.response)
-
-      if (typeof data.response === 'string') {
-        // The backend is returning a stringified dictionary like: {'response': 'actual text'}
-        // We need to extract just the actual text
-
-        if (data.response.startsWith("{'response':") || data.response.startsWith('{"response":')) {
-          // Extract the response text from the stringified dict using improved regex
-          const match = data.response.match(/['"]response['"]:\s*['"](.*)['"](?:\s*,|\s*})/)
-          if (match) {
-            responseText = match[1]
-              .replace(/\\n/g, '\n')      // Convert \n to actual newlines
-              .replace(/\\'/g, "'")       // Convert \' to '
-              .replace(/\\"/g, '"')       // Convert \" to "
-              .replace(/\\\\/g, '\\')     // Convert \\ to \
-          } else {
-            // Fallback: try JSON parsing
-            try {
-              let cleanResponse = data.response.replace(/'/g, '"') // Convert single quotes to double quotes
-              const parsed = JSON.parse(cleanResponse)
-              responseText = parsed.response || data.response
-            } catch (e) {
-              responseText = data.response
-            }
-          }
-        } else {
-          responseText = data.response
-        }
-      } else {
-        responseText = "I'm here to help. Please let me know what's on your mind."
-      }
-
-      // Format the response for better readability
-      responseText = responseText
-        .trim()
-        // Don't add extra line breaks - let the original formatting shine through
-        // Just clean up any excessive spacing
-        .replace(/\n\n\n+/g, '\n\n')     // Reduce triple+ newlines to double newlines      // Add assistant response
+      // Use the response directly from API
+      const responseText = data.response || "I'm here to help. Please let me know what's on your mind."
+      
+      console.log("🔍 AIAssistantUI - Final responseText:", responseText)
+        
+      // Add assistant response
       setConversations((prev) =>
         prev.map((c) => {
           if (c.id !== convId) return c
@@ -291,6 +329,19 @@ export default function AIAssistantUI() {
       )
     } catch (err) {
       console.error("Chat API error:", err)
+      
+      // Handle different types of errors gracefully
+      let errorMessage = "⚠️ Error: Could not reach server."
+      if (err.status === 401) {
+        errorMessage = "⚠️ Authentication required. Please log in again."
+      } else if (err.status === 403) {
+        errorMessage = "⚠️ Access denied. Please check your permissions."
+      } else if (err.status >= 500) {
+        errorMessage = "⚠️ Server error. Please try again in a moment."
+      } else if (err.message.includes('Network error')) {
+        errorMessage = "⚠️ Network error. Please check your connection and try again."
+      }
+      
       // Insert error message
       setConversations((prev) =>
         prev.map((c) => {
@@ -298,7 +349,7 @@ export default function AIAssistantUI() {
           const errorMsg = {
             id: Math.random().toString(36).slice(2),
             role: "assistant",
-            content: "⚠️ Error: Could not reach server.",
+            content: errorMessage,
             createdAt: new Date().toISOString(),
           }
           return { ...c, messages: [...(c.messages || []), errorMsg] }
@@ -339,6 +390,51 @@ export default function AIAssistantUI() {
     setThinkingConvId(null)
   }
 
+  // Load more messages for pagination
+  async function loadMoreMessages(convId) {
+    const conversation = conversations.find(c => c.id === convId)
+    if (!conversation || !conversation.hasMore) return
+
+    setLoadingHistory(true)
+    setHistoryError(null)
+
+    try {
+      // Load more messages (next batch)
+      const currentMessageCount = conversation.messages?.length || 0
+      const historyData = await apiService.loadChatHistory(convId, 50)
+      
+      // Get only the new messages (older ones)
+      const newMessages = historyData.messages.filter(msg => 
+        !conversation.messages.some(existingMsg => existingMsg.id === msg.id)
+      )
+      
+      // Prepend older messages to maintain chronological order
+      setConversations(prev => 
+        prev.map(c => {
+          if (c.id !== convId) return c
+          
+          const allMessages = [...newMessages, ...(c.messages || [])]
+          // Sort to ensure proper chronological order (oldest → newest)
+          allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          
+          return {
+            ...c,
+            messages: allMessages,
+            messageCount: allMessages.length,
+            hasMore: historyData.hasMore,
+          }
+        })
+      )
+      
+      console.log(`📥 Loaded ${newMessages.length} more messages`)
+    } catch (error) {
+      console.error('❌ Error loading more messages:', error)
+      setHistoryError('Failed to load more messages')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
   function handleUseTemplate(template) {
     if (composerRef.current) {
       composerRef.current.insertTemplate(template.content)
@@ -356,6 +452,32 @@ export default function AIAssistantUI() {
           <div className="text-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-zinc-600"></div>
             <p className="mt-2 text-sm text-zinc-600">Loading MITRA...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading state while user data and chat history are being loaded
+  if (loading || (user && !historyLoaded && loadingHistory)) {
+    return (
+      <div className="h-screen w-full bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100" suppressHydrationWarning={true}>
+        <div className="flex h-full items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-zinc-300 border-t-zinc-600 mx-auto"></div>
+            <div className="space-y-2">
+              <p className="text-sm text-zinc-600 font-medium">
+                {loading ? "Authenticating..." : "Loading your chat history..."}
+              </p>
+              <p className="text-xs text-zinc-500">
+                Preparing your personalized MITRA experience
+              </p>
+            </div>
+            <div className="flex items-center justify-center space-x-1 mt-4">
+              <div className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+              <div className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+              <div className="h-2 w-2 bg-zinc-400 rounded-full animate-bounce"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -419,8 +541,11 @@ export default function AIAssistantUI() {
             onSend={(content) => selected && sendMessage(selected.id, content)}
             onEditMessage={(messageId, newContent) => selected && editMessage(selected.id, messageId, newContent)}
             onResendMessage={(messageId) => selected && resendMessage(selected.id, messageId)}
+            onLoadMore={() => selected && loadMoreMessages(selected.id)}
             isThinking={isThinking && thinkingConvId === selected?.id}
             onPauseThinking={pauseThinking}
+            loadingHistory={loadingHistory}
+            historyError={historyError}
           />
         </main>
       </div>
