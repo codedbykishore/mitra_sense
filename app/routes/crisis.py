@@ -7,8 +7,6 @@ import logging
 from app.services.crisis import CrisisService
 from app.services.gemini_ai import GeminiService
 from app.services.firestore import FirestoreService
-from app.dependencies.auth import get_current_user
-from app.models.db_models import User
 
 logger = logging.getLogger(__name__)
 

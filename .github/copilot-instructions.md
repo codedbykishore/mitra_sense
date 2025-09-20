@@ -361,6 +361,27 @@ async rewrites() {
 - **Cultural Language Support**: Hindi/English code-switching detection
 - **Crisis Safety Systems**: Multi-level risk assessment with Tele MANAS integration
 
+### ✅ Comprehensive Testing Suite (NEW)
+
+- **Authentication Tests**: `test_auth.py` (mocked) + `test_auth_real.py` (integration)
+  - Google OAuth flow testing, JWT token validation, session management
+  - Login/logout endpoints, user authentication dependencies
+  - Password hashing and security utilities testing
+- **Onboarding Tests**: `test_onboarding.py` (mocked) + `test_onboarding_real.py` (integration)
+  - Student/institution role onboarding workflows
+  - Institution selection and validation, profile completion
+  - Onboarding status tracking and user redirect logic
+- **Voice Pipeline Tests**: `test_voice_pipeline.py` (mocked) + `test_voice_pipeline_real.py` (integration)
+  - Complete voice processing workflow (STT → AI → TTS)
+  - Cultural voice processing, crisis detection via voice emotion
+  - Audio format validation, error handling, and accessibility features
+- **Institution Management Tests**: `test_institutions.py` (mocked) + `test_institutions_real.py` (integration)
+  - Institution CRUD operations, uniqueness validation
+  - Student count tracking, region-based filtering
+  - Complete user-institution enrollment workflows
+- **Testing Convention**: `_real.py` files test actual endpoints/Firestore, regular files use mocks
+- **Pytest Markers**: `@pytest.mark.integration` for real tests requiring external services
+
 ### Essential Dependencies
 
 ```python

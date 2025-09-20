@@ -113,9 +113,16 @@ async def test_detect_emotional_tone_with_gemini(patched_service):
     # Patch transcribe_audio to avoid calling STT
     svc.transcribe_audio = AsyncMock(return_value=("I am sad", 0.95))
 
-    # Patch GeminiService.process_cultural_conversation to return an emotions dict
-    gemini_emotion_output = {"emotions": {"anxiety": 0.1, "sadness": 0.8, "calmness": 0.0, "anger": 0.0}}
-    with patch.object(GeminiService, "process_cultural_conversation", AsyncMock(return_value=gemini_emotion_output)):
+    # Patch GeminiService to return JSON emotion response
+    emotion_json = (
+        '{"anxiety": 0.1, "sadness": 0.8, "calmness": 0.0, "anger": 0.0}'
+    )
+    gemini_emotion_output = {"response": emotion_json}
+    with patch.object(
+        GeminiService,
+        "process_cultural_conversation",
+        AsyncMock(return_value=gemini_emotion_output)
+    ):
         emotions = await svc.detect_emotional_tone(b"audio", "en-US")
 
     assert emotions["sadness"] == pytest.approx(0.8)
@@ -124,13 +131,19 @@ async def test_detect_emotional_tone_with_gemini(patched_service):
 
 @pytest.mark.asyncio
 async def test_detect_emotional_tone_fallback_basic(patched_service):
-    """If Gemini call fails, detect_emotional_tone should fall back to keyword-based detection."""
+    """Test fallback to keyword-based detection when Gemini fails."""
     svc = patched_service
 
-    svc.transcribe_audio = AsyncMock(return_value=("I am very worried and scared", 0.9))
+    svc.transcribe_audio = AsyncMock(
+        return_value=("I am very worried and scared", 0.9)
+    )
 
     # Make GeminiService.process_cultural_conversation raise an exception
-    with patch.object(GeminiService, "process_cultural_conversation", AsyncMock(side_effect=Exception("fail"))):
+    with patch.object(
+        GeminiService,
+        "process_cultural_conversation",
+        AsyncMock(side_effect=Exception("fail"))
+    ):
         emotions = await svc.detect_emotional_tone(b"audio", "en-US")
 
     # Basic keyword detector should detect anxiety > 0

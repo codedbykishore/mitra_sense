@@ -7,8 +7,9 @@ from pydantic import BaseModel, Field
 class User(BaseModel):
     user_id: str
     email: str
-    hashed_password: Optional[str] = None
     google_id: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
     cultural_background: str = Field(default="indian_general")
     preferred_language: str = Field(default="en-US")
     age_group: Optional[str] = None
