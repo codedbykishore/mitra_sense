@@ -98,12 +98,29 @@ async def get_current_user(request: Request):
             status_code=401
         )
 
+    # Get full user info from Firestore for onboarding status
+    email = user.get("email")
+    if email:
+        firestore_user = await fs.get_user_by_email(email)
+        onboarding_completed = (
+            firestore_user.onboarding_completed if firestore_user else False
+        )
+        role = firestore_user.role if firestore_user else None
+        profile = firestore_user.profile if firestore_user else {}
+    else:
+        onboarding_completed = False
+        role = None
+        profile = {}
+
     return {
         "authenticated": True,
         "name": user.get("name"),
         "email": user.get("email"),
         "picture": user.get("picture"),
-        "plan": user.get("plan", "Free")
+        "plan": user.get("plan", "Free"),
+        "onboarding_completed": onboarding_completed,
+        "role": role,
+        "profile": profile
     }
 
 
@@ -123,11 +140,20 @@ async def auth_callback(request: Request):
             hashed_password="",  # empty since Google handles auth
         )
         await fs.create_user(user)
+        # New user needs onboarding
+        request.session["user"] = dict(user_info)
+        return RedirectResponse(url="http://localhost:3000/onboarding")
+    else:
+        # Existing user - check onboarding status
+        request.session["user"] = dict(user_info)
+        if not existing.onboarding_completed:
+            return RedirectResponse(url="http://localhost:3000/onboarding")
+        else:
+            return RedirectResponse(url="http://localhost:3000/")
 
+    # This should not be reached, but keep as fallback
     request.session["user"] = dict(user_info)
-    response = RedirectResponse(url="http://localhost:3000/")
-    # return JSONResponse({"message": "Login successful", "user": user_info})
-    return response
+    return RedirectResponse(url="http://localhost:3000/")
 
 
 @router.get("/logout")

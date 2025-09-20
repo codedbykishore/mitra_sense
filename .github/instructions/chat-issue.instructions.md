@@ -1,7 +1,3 @@
----
-applyTo: '**'
----
-
 ### Conversation History (Frontend)
 
 - Use `useConversations.ts` hook to manage chat CRUD operations.

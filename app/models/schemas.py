@@ -103,3 +103,47 @@ class RAGResponse(BaseModel):
         ge=0.0,
         le=1.0
     )
+
+
+class UserRole(str, Enum):
+    STUDENT = "student"
+    INSTITUTION = "institution"
+
+
+class OnboardingRequest(BaseModel):
+    role: UserRole = Field(
+        ..., description="User role: student or institution"
+    )
+    profile: Dict[str, str] = Field(
+        ...,
+        description="Profile data based on role"
+    )
+    
+    class Config:
+        schema_extra = {
+            "examples": [
+                {
+                    "role": "student",
+                    "profile": {
+                        "name": "Priya Sharma",
+                        "age": "20",
+                        "region": "North India",
+                        "language_preference": "hi-IN"
+                    }
+                },
+                {
+                    "role": "institution",
+                    "profile": {
+                        "institution_name": "Delhi University",
+                        "contact_person": "Dr. Rajesh Kumar",
+                        "region": "North India"
+                    }
+                }
+            ]
+        }
+
+
+class OnboardingResponse(BaseModel):
+    success: bool
+    message: str
+    user_profile: Dict[str, str] = Field(default_factory=dict)

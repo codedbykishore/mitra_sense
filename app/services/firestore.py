@@ -34,6 +34,16 @@ class FirestoreService:
     async def delete_user(self, user_id: str) -> None:
         await self.db.collection("users").document(user_id).delete()
 
+    async def complete_onboarding(
+        self, user_id: str, role: str, profile: dict
+    ) -> None:
+        """Complete user onboarding with role and profile data."""
+        await self.db.collection("users").document(user_id).update({
+            "onboarding_completed": True,
+            "role": role,
+            "profile": profile
+        })
+
     # ---------- CONVERSATION ----------
     async def store_conversation(self, conversation: Conversation) -> None:
         await (
