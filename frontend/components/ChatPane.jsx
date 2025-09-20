@@ -21,6 +21,52 @@ const VoiceCompanion = dynamic(() => import("./voice/VoiceCompanion"), {
   )
 })
 
+// Component to format AI responses with proper markdown and spacing
+function FormattedResponse({ content }) {
+  if (!content) return null
+
+  // Process the content to handle markdown and proper spacing
+  let processedContent = content
+    // Handle bold text **text** -> <strong>text</strong>
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Handle bullet points with multiple spaces *   text -> • text
+    .replace(/^\*\s{2,}/gm, '• ')
+    // Handle italic text *text* -> <em>text</em> (but not bullet points)
+    .replace(/(?<!•\s.*)\*([^*\n]+)\*(?!\s)/g, '<em>$1</em>')
+
+  // Smart question formatting - only for standalone questions
+  processedContent = processedContent
+    // Put standalone questions on new lines
+    .replace(/(\. )([A-Z][^.!?]*\?\s*$)/gm, '$1\n\n$2')
+    .replace(/(\. )(What|Why|When|Where|How|Do you|Can you|Have you|Are you|Is there|Could you|Would you|Will you|Should|Might)[^.!?]*\?\s*$/gm, '$1\n\n$2')
+
+  // Clean up excessive spacing but preserve intentional paragraph breaks
+  processedContent = processedContent
+    .replace(/\n{3,}/g, '\n\n') // Max 2 newlines
+    .trim()
+
+  // Split into paragraphs and format
+  const paragraphs = processedContent.split('\n\n').filter(p => p.trim())
+
+  const formattedHTML = paragraphs
+    .map(paragraph => {
+      // Convert single newlines within paragraphs to <br/>
+      const formattedParagraph = paragraph.replace(/\n/g, '<br/>')
+      return `<p class="mb-3">${formattedParagraph}</p>`
+    })
+    .join('')
+
+  return (
+    <div className="text-sm leading-relaxed">
+      <div
+        dangerouslySetInnerHTML={{
+          __html: formattedHTML
+        }}
+      />
+    </div>
+  )
+}
+
 function ThinkingMessage({ onPause }) {
   return (
     <Message role="assistant">
@@ -418,7 +464,13 @@ const ChatPane = forwardRef(function ChatPane(
                   </div>
                 ) : (
                   <Message role={m.role}>
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    <div className="whitespace-pre-wrap">
+                      {m.role === 'assistant' ? (
+                        <FormattedResponse content={m.content} />
+                      ) : (
+                        m.content
+                      )}
+                    </div>
 
                     {/* Voice interaction indicators */}
                     {m.type === 'voice' && (
