@@ -33,8 +33,13 @@ class RAGService:
         Returns:
             List of relevant documents with metadata
         """
-        # Build metadata filters
-        metadata_filters = [f'language="{language}"']
+        # Normalize language to base code (e.g., "en" from "en-US") and build metadata filters
+        try:
+            base_lang = (language or "en").split('-')[0].lower().strip()
+        except Exception:
+            base_lang = (language or "en").lower().strip()
+
+        metadata_filters = [f'language="{base_lang}"']
 
         if region:
             metadata_filters.append(f'region="{region}"')

@@ -4,7 +4,12 @@ import logging
 import json
 from typing import Optional, Dict, Tuple
 from google.cloud import speech, texttospeech, translate_v2 as translate
-from google.api_core.exceptions import GoogleAPIError
+# google.api_core may not be visible to static analyzers; provide a fallback
+try:
+    from google.api_core.exceptions import GoogleAPIError  # type: ignore[import-not-found,attr-defined]
+except Exception:  # pragma: no cover - fallback for type-checkers
+    class GoogleAPIError(Exception):
+        pass
 from app.config import settings  # Import project settings
 from app.services.gemini_ai import GeminiService  # For emotion integration if needed
 from fastapi import HTTPException
@@ -30,6 +35,55 @@ class SpeechService:
         except Exception as e:
             logger.error(f"Failed to initialize Google Speech services: {e}")
             raise
+
+    def _is_opus_container(self, encoding: speech.RecognitionConfig.AudioEncoding) -> bool:
+        """Return True if encoding is an OPUS-in-container format (WebM/Ogg)."""
+        return encoding in (
+            speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
+            speech.RecognitionConfig.AudioEncoding.OGG_OPUS,
+        )
+
+    def _build_recognition_config(
+        self,
+        *,
+        encoding: speech.RecognitionConfig.AudioEncoding,
+        language_code: str,
+        sample_rate_hz: Optional[int] = None,
+        alt_language_codes: Optional[list[str]] = None,
+        model: Optional[str] = "latest_long",
+        enable_automatic_punctuation: bool = True,
+        audio_channel_count: Optional[int] = None,
+    ) -> speech.RecognitionConfig:
+        """Build a RecognitionConfig, omitting fields not supported for Opus containers.
+
+        Google STT determines sample rate and channels from encoded Opus in WebM/Ogg.
+        Passing sample_rate_hertz or audio_channel_count can cause INVALID_ARGUMENT (400).
+        """
+        alt_language_codes = alt_language_codes or []
+
+        if self._is_opus_container(encoding):
+            # Do NOT set sample_rate_hertz or audio_channel_count for OPUS containers
+            return speech.RecognitionConfig(
+                encoding=encoding,
+                language_code=language_code,
+                alternative_language_codes=alt_language_codes,
+                enable_automatic_punctuation=enable_automatic_punctuation,
+                model=model,
+            )
+
+        # For PCM/FLAC etc., include sample rate and (optionally) channels
+        kwargs: Dict = dict(
+            encoding=encoding,
+            language_code=language_code,
+            alternative_language_codes=alt_language_codes,
+            enable_automatic_punctuation=enable_automatic_punctuation,
+            model=model,
+        )
+        if sample_rate_hz:
+            kwargs["sample_rate_hertz"] = sample_rate_hz
+        if audio_channel_count:
+            kwargs["audio_channel_count"] = audio_channel_count
+        return speech.RecognitionConfig(**kwargs)
 
     def _detect_audio_format(self, audio_data: bytes) -> Tuple[speech.RecognitionConfig.AudioEncoding, int]:
         """Detect audio format from header and return appropriate encoding and sample rate."""
@@ -62,19 +116,14 @@ class SpeechService:
         try:
             encoding, detected_sample_rate = self._detect_audio_format(audio_data)
             actual_sample_rate = sample_rate or detected_sample_rate
-            
-            # Explicitly set channel count for WebM OPUS (2 channels) to avoid API mismatch
-            channel_count = 2 if encoding == speech.RecognitionConfig.AudioEncoding.WEBM_OPUS else 1
-            
-            config = speech.RecognitionConfig(
+            # Build config with correct handling for OPUS
+            config = self._build_recognition_config(
                 encoding=encoding,
-                sample_rate_hertz=actual_sample_rate,
-                language_code=self.supported_languages[0],  # Primary language
-                alternative_language_codes=self.supported_languages[
-                    1:
-                ] if len(self.supported_languages) > 1 else [],  # Fallback/alternate
+                language_code=self.supported_languages[0],
+                sample_rate_hz=actual_sample_rate,
+                alt_language_codes=self.supported_languages[1:] if len(self.supported_languages) > 1 else [],
                 enable_automatic_punctuation=True,
-                audio_channel_count=channel_count,  # Explicitly set to match WebM OPUS (2) or default (1)
+                audio_channel_count=2 if encoding == speech.RecognitionConfig.AudioEncoding.LINEAR16 else None,
             )
             audio = speech.RecognitionAudio(content=audio_data)
 
@@ -124,16 +173,15 @@ class SpeechService:
             )  # Auto-detect if not provided
             logger.info(f"Language detection: Detected '{language}' from audio")
 
-        # Explicitly set channel count for WebM OPUS (2 channels) to avoid API mismatch
-        channel_count = 2 if encoding == speech.RecognitionConfig.AudioEncoding.WEBM_OPUS else 1
-        
-        config = speech.RecognitionConfig(
+        # Build config with correct handling for OPUS
+        config = self._build_recognition_config(
             encoding=encoding,
-            sample_rate_hertz=actual_sample_rate,
             language_code=language,
+            sample_rate_hz=actual_sample_rate,
+            alt_language_codes=[],
             enable_automatic_punctuation=True,
-            model="latest_long",  # For longer conversations
-            audio_channel_count=channel_count,  # Explicitly set to match WebM OPUS (2) or default (1)
+            model="latest_long",
+            audio_channel_count=2 if encoding == speech.RecognitionConfig.AudioEncoding.LINEAR16 else None,
         )
 
         audio = speech.RecognitionAudio(content=audio_data)
@@ -159,8 +207,30 @@ class SpeechService:
                 return "", 0.0
         except GoogleAPIError as e:
             logger.error(f"STT failed: {e}")
-            # Force reload - Fixed channel count issue at 14:32
-            raise HTTPException(status_code=500, detail="Speech recognition error")
+            # Retry with minimal config for OPUS containers in case of invalid argument errors
+            if self._is_opus_container(encoding):
+                try:
+                    minimal_config = speech.RecognitionConfig(
+                        encoding=encoding,
+                        language_code=language,
+                        enable_automatic_punctuation=True,
+                    )
+                    minimal_response = await asyncio.to_thread(
+                        self.speech_client.recognize, config=minimal_config, audio=audio
+                    )
+                    if minimal_response.results and minimal_response.results[0].alternatives:
+                        transcript = " ".join(
+                            [
+                                result.alternatives[0].transcript
+                                for result in minimal_response.results
+                                if result.alternatives
+                            ]
+                        )
+                        confidence = minimal_response.results[0].alternatives[0].confidence
+                        return transcript, confidence
+                except Exception as retry_e:
+                    logger.error(f"STT retry with minimal config also failed: {retry_e}")
+            raise HTTPException(status_code=500, detail=f"Speech recognition error: {e}")
 
     # 2. Synthesize Response - Your Function with Cultural Enhancements
     async def synthesize_response(
@@ -353,7 +423,6 @@ class SpeechService:
         
         # Use forced language if provided, otherwise detect from audio
         force_language = pipeline_options.get("force_language")
-        cultural_language = pipeline_options.get("cultural_language")
         
         if force_language:
             language = force_language
@@ -371,7 +440,8 @@ class SpeechService:
         gemini_options = {
             "language": language,  # STT detected language for context
             "conversation_context": conversation_context,
-            "force_response_language": force_language or cultural_language,  # Force response in specific language
+            # Enforce response language: explicit forceLanguage wins, otherwise stick to STT-detected language
+            "force_response_language": force_language or language,
             "stt_language": language  # Pass STT language to override Gemini's detection
         }
         if conversation_context:

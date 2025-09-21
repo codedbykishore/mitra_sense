@@ -65,8 +65,17 @@ def _format_emotion_response(emotions_dict: dict) -> dict:
 async def transcribe_voice(audio: UploadFile = File(...)):
     try:
         audio_bytes = await audio.read()
+        if not audio_bytes or len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No audio data received")
+        try:
+            speech_service.validate_audio(audio_bytes)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
         transcript, confidence = await speech_service.transcribe_audio(audio_bytes)
         return {"transcript": transcript, "confidence": confidence}
+    except HTTPException as e:
+        # Preserve original status/detail
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"STT error: {e}")
 
@@ -75,9 +84,13 @@ async def transcribe_voice(audio: UploadFile = File(...)):
 async def detect_emotion(audio: UploadFile = File(...)):
     try:
         audio_bytes = await audio.read()
+        if not audio_bytes or len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No audio data received")
         language = await speech_service.detect_language(audio_bytes)
         emotions = await speech_service.detect_emotional_tone(audio_bytes, language)
         return {"emotions": emotions}
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Emotion analysis error: {e}")
 
@@ -101,6 +114,12 @@ async def full_voice_pipeline(audio: UploadFile = File(...)):
     try:
         logger.info(f"Received audio file: {audio.filename}, Content-Type: {audio.content_type}")
         audio_bytes = await audio.read()
+        if not audio_bytes or len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No audio data received")
+        try:
+            speech_service.validate_audio(audio_bytes)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
         result = await speech_service.process_voice_pipeline(audio_bytes)
         return {
             "transcript": result["transcript"],
@@ -108,6 +127,8 @@ async def full_voice_pipeline(audio: UploadFile = File(...)):
             "audio_output": result["audio_output"],
             "emotions": result["emotions"],
         }
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Pipeline error in full_voice_pipeline: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Pipeline error: {e}")
@@ -145,6 +166,12 @@ async def voice_pipeline_json(
         
         # Read audio data
         audio_bytes = await audio.read()
+        if not audio_bytes or len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No audio data received")
+        try:
+            speech_service.validate_audio(audio_bytes)
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=str(ve))
         logger.info(f"Audio data size: {len(audio_bytes)} bytes")
         
         # Get conversation context if conversationId is provided
@@ -188,14 +215,14 @@ async def voice_pipeline_json(
         pipeline_options = {
             "conversation_context": conversation_context,
             "force_language": forceLanguage,
-            "cultural_language": cultural_data.get("language")
         }
         result = await speech_service.process_voice_pipeline_optimized(audio_bytes, conversation_context, pipeline_options)
         
         # Format response to match VoiceCompanion expectations
         # Get the detected language from the result
         detected_language = result.get("detected_language", "en-US")
-        response_language = forceLanguage or cultural_data.get("language", detected_language)
+        # Prefer explicit forceLanguage, else stick to detected input (STT) language
+        response_language = forceLanguage or detected_language
         
         logger.info(f"Language info - Detected: {detected_language}, Using: {response_language}")
         
@@ -244,7 +271,8 @@ async def voice_pipeline_json(
                 "timestamp": datetime.now(timezone.utc),
                 "metadata": {
                     "source": "voice",
-                    "language": detected_language,
+                    # Save the actual response language (may be forced)
+                    "language": response_language,
                     "embedding_id": None,
                     "emotion_score": "{}"
                 }
@@ -304,6 +332,9 @@ async def voice_pipeline_json(
         
         return response
         
+    except HTTPException as e:
+        # Let FastAPI propagate intended status codes
+        raise e
     except Exception as e:
         logger.error(f"Voice pipeline error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Voice pipeline error: {str(e)}")
