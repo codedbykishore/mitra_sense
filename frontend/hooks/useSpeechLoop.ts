@@ -11,7 +11,7 @@
  * 5. Maintain conversation context for RAG + Gemini AI
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
     VoiceRecordingError,
     VoicePlaybackError,
@@ -162,7 +162,7 @@ export interface UseSpeechLoopReturn {
  */
 export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopReturn => {
     const {
-        apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1',
+        apiBaseUrl: cfgApiBaseUrl,
         authToken,
         culturalContext,
         initialConversationId,
@@ -174,6 +174,33 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
         onError,
         onStateChange,
     } = config;
+
+    // Resolve API base URL robustly for static export deployments
+    // Priority: explicit config > NEXT_PUBLIC_API_BASE_URL (absolute) > NEXT_PUBLIC_BACKEND_URL + /api/v1 > '/api/v1'
+    const apiBase = useMemo(() => {
+        const envApi = process.env.NEXT_PUBLIC_API_BASE_URL;
+        const backendOrigin = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+        if (cfgApiBaseUrl && cfgApiBaseUrl.trim().length > 0) return cfgApiBaseUrl.replace(/\/$/, '');
+
+        if (envApi && envApi.trim().length > 0) {
+            // If envApi is relative (starts with '/'), and we have a backend origin, join them
+            if (!/^https?:\/\//i.test(envApi)) {
+                if (backendOrigin && backendOrigin.trim().length > 0) {
+                    return `${backendOrigin.replace(/\/$/, '')}${envApi.startsWith('/') ? '' : '/'}${envApi.replace(/^\//, '')}`.replace(/\/$/, '');
+                }
+                return envApi.replace(/\/$/, '');
+            }
+            return envApi.replace(/\/$/, '');
+        }
+
+        if (backendOrigin && backendOrigin.trim().length > 0) {
+            return `${backendOrigin.replace(/\/$/, '')}/api/v1`;
+        }
+
+        // Fallback to relative path (works only when rewrites are configured in dev)
+        return '/api/v1';
+    }, [cfgApiBaseUrl]);
 
     // State management
     const [state, setState] = useState<SpeechLoopState>('idle');
@@ -298,9 +325,9 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
 
         try {
             // Log API call for debugging
-            if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
                 console.log('Voice API call:', {
-                    url: `${apiBaseUrl}/voice/pipeline/audio`,
+            url: `${apiBase}/voice/pipeline/audio`,
                     audioSize: audioBlob.size,
                     audioType: audioBlob.type,
                     culturalContext,
@@ -308,7 +335,7 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
                 });
             }
 
-            const response = await fetch(`${apiBaseUrl}/voice/pipeline/audio`, requestConfig);
+        const response = await fetch(`${apiBase}/voice/pipeline/audio`, requestConfig);
 
             clearTimeout(timeoutId);
 
@@ -324,6 +351,18 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
                 } else {
                     throw new Error(errorMessage);
                 }
+            }
+
+            // Ensure we actually received JSON, otherwise surface a helpful error
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const preview = (await response.text()).slice(0, 300);
+                throw new Error(
+                    `Expected JSON from voice API but got '${contentType}'. ` +
+                    `This usually means the request hit the Next.js static site instead of the FastAPI backend. ` +
+                    `Verify NEXT_PUBLIC_BACKEND_URL or NEXT_PUBLIC_API_BASE_URL. ` +
+                    `URL used: ${apiBase}/voice/pipeline/audio. Response preview: ${preview}`
+                );
             }
 
             const result: VoicePipelineResponse = await response.json();
@@ -364,7 +403,7 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
         } finally {
             abortControllerRef.current = null;
         }
-    }, [apiBaseUrl, authToken, culturalContext, conversationId, uploadTimeout, processingTimeout, ensureSessionId]);
+    }, [apiBase, authToken, culturalContext, conversationId, uploadTimeout, processingTimeout, ensureSessionId]);
 
     /**
      * Play TTS audio with interruption handling

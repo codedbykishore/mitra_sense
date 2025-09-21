@@ -12,7 +12,9 @@ export default function SettingsPopover({ children }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("/me", {
+        // Use backend URL directly for Firebase Hosting deployment
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+        const res = await fetch(`${backendUrl}/me`, {
           credentials: "include", // include session cookies
         })
 

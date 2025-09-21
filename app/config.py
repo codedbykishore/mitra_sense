@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     REDIRECT_URI:str = str(os.getenv("REDIRECT_URI"))
     SECRET_KEY:str = str(os.getenv("SECRET_KEY"))
     CORPUS_NAME:str = str(os.getenv("CORPUS_NAME"))
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
 
     SUPPORTED_LANGUAGES: list[str] = [
         "en-US",  # English (US)

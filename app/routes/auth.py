@@ -87,14 +87,14 @@ async def auth_callback(request: Request):
         await fs.create_user(user)
         # New user needs onboarding
         request.session["user"] = dict(user_info)
-        return RedirectResponse(url="http://localhost:3000/onboarding")
+        return RedirectResponse(url=f"{settings.FRONTEND_BASE_URL}/onboarding")
     else:
         # Existing user - check onboarding status
         request.session["user"] = dict(user_info)
         if not existing.onboarding_completed:
-            return RedirectResponse(url="http://localhost:3000/onboarding")
+            return RedirectResponse(url=f"{settings.FRONTEND_BASE_URL}/onboarding")
         else:
-            return RedirectResponse(url="http://localhost:3000/")
+            return RedirectResponse(url=f"{settings.FRONTEND_BASE_URL}/")
 
 
 @router.get("/logout")
