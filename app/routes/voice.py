@@ -17,6 +17,50 @@ speech_service = SpeechService(rag_corpus_name=settings.CORPUS_NAME) # Pass RAG 
 gemini_service = GeminiService()
 
 
+def _format_emotion_response(emotions_dict: dict) -> dict:
+    """Format emotion dictionary from speech service to match frontend expectations."""
+    if not emotions_dict:
+        return {
+            "primaryEmotion": "neutral",
+            "confidence": 0.5,
+            "stressLevel": 0.3,
+            "characteristics": {
+                "pitch": 50,
+                "volume": 50,
+                "speed": 50,
+                "clarity": 90
+            }
+        }
+    
+    # Find the emotion with highest score as primary emotion
+    primary_emotion = "neutral"
+    max_score = 0.0
+    total_stress = 0.0
+    
+    stress_emotions = ["anxiety", "anger", "sadness", "worried", "frustrated"]
+    
+    for emotion, score in emotions_dict.items():
+        if score > max_score:
+            max_score = score
+            primary_emotion = emotion
+        
+        # Calculate stress level from negative emotions
+        if emotion.lower() in stress_emotions:
+            total_stress += score
+    
+    return {
+        "primaryEmotion": primary_emotion,
+        "confidence": max_score,
+        "stressLevel": min(total_stress, 1.0),  # Cap at 1.0
+        "characteristics": {
+            "pitch": 50,
+            "volume": 50,
+            "speed": 50,
+            "clarity": 90
+        }
+    }
+
+
 @router.post("/voice/transcribe")
 async def transcribe_voice(audio: UploadFile = File(...)):
     try:
@@ -75,10 +119,12 @@ async def voice_pipeline_json(
     duration: str = Query(default="0"),
     sessionId: str = Query(default=""),
     conversationId: str = Query(default=""),
-    culturalContext: str = Query(default="{}")
+    culturalContext: str = Query(default="{}"),
+    forceLanguage: str = Query(default="", description="Force specific language (e.g., 'en-US', 'hi-IN')")
 ):
     """
     Complete voice pipeline endpoint that returns JSON response for VoiceCompanion.
+    Uses voice-optimized responses (shorter, TTS-friendly).
     """
     try:
         import json
@@ -92,31 +138,132 @@ async def voice_pipeline_json(
         except json.JSONDecodeError:
             cultural_data = {}
         
+        # Override language if specified
+        if forceLanguage:
+            cultural_data["language"] = forceLanguage
+            logger.info(f"Language override: Using forced language '{forceLanguage}'")
+        
         # Read audio data
         audio_bytes = await audio.read()
         logger.info(f"Audio data size: {len(audio_bytes)} bytes")
         
-        # Process through speech service
-        result = await speech_service.process_voice_pipeline(audio_bytes)
+        # Get conversation context if conversationId is provided
+        conversation_context = ""
+        print(f"\n🔍 VOICE CONTEXT RETRIEVAL DEBUG:")
+        print(f"Provided conversationId: '{conversationId}'")
+        print(f"sessionId: '{sessionId}'")
+        
+        if conversationId:
+            try:
+                from app.services.conversation_service import ConversationService
+                conversation_service = ConversationService()
+                
+                print(f"Attempting to fetch context for conversation: {conversationId}")
+                
+                # Fetch recent messages for context (limit to 5 for voice)
+                recent_messages = await conversation_service.get_recent_context(
+                    conversationId, limit=5
+                )
+                
+                print(f"Retrieved {len(recent_messages) if recent_messages else 0} messages")
+                
+                if recent_messages:
+                    conversation_context = await conversation_service.format_context_for_rag(
+                        recent_messages, include_metadata=False
+                    )
+                    print(f"Formatted context length: {len(conversation_context)} chars")
+                    print(f"Context preview: '{conversation_context[:200]}...'")
+                else:
+                    print("No recent messages found for context")
+                    
+                logger.info(f"Voice context: Found {len(recent_messages) if recent_messages else 0} recent messages")
+            except Exception as e:
+                print(f"ERROR fetching context: {e}")
+                logger.warning(f"Could not fetch voice conversation context: {e}")
+        else:
+            print("No conversationId provided - no context will be used")
+        
+        # Process through speech service with voice-optimized responses
+        # Pass language preference to the pipeline
+        pipeline_options = {
+            "conversation_context": conversation_context,
+            "force_language": forceLanguage,
+            "cultural_language": cultural_data.get("language")
+        }
+        result = await speech_service.process_voice_pipeline_optimized(audio_bytes, conversation_context, pipeline_options)
+        
+        # Format response to match VoiceCompanion expectations
+        # Get the detected language from the result
+        detected_language = result.get("detected_language", "en-US")
+        response_language = forceLanguage or cultural_data.get("language", detected_language)
+        
+        logger.info(f"Language info - Detected: {detected_language}, Using: {response_language}")
+        
+        # Save voice messages to Firestore for conversation persistence
+        real_conversation_id = conversationId
+        if not real_conversation_id:
+            # Create new conversation if none provided
+            from app.services.firestore import FirestoreService
+            firestore_service = FirestoreService()
+            real_conversation_id = await firestore_service.create_or_update_conversation(
+                "anonymous", force_new=False
+            )
+        
+        # Save user voice message and AI response for context
+        try:
+            import uuid
+            from datetime import datetime, timezone
+            from app.services.firestore import FirestoreService
+            firestore_service = FirestoreService()
+            
+            transcript_text = result.get("transcript", "")
+            ai_response_text = result.get("gemini_response", {}).get("response", "")
+            
+            # Save user message
+            user_message_data = {
+                "message_id": str(uuid.uuid4()),
+                "conversation_id": real_conversation_id,
+                "sender_id": "user",
+                "text": transcript_text,
+                "timestamp": datetime.now(timezone.utc),
+                "metadata": {
+                    "source": "voice",
+                    "language": detected_language,
+                    "embedding_id": None,
+                    "emotion_score": json.dumps(result.get("emotions", {}))
+                }
+            }
+            await firestore_service.save_message(real_conversation_id, user_message_data)
+            
+            # Save AI response
+            ai_message_data = {
+                "message_id": str(uuid.uuid4()),
+                "conversation_id": real_conversation_id,
+                "sender_id": "ai",
+                "text": ai_response_text,
+                "timestamp": datetime.now(timezone.utc),
+                "metadata": {
+                    "source": "voice",
+                    "language": detected_language,
+                    "embedding_id": None,
+                    "emotion_score": "{}"
+                }
+            }
+            await firestore_service.save_message(real_conversation_id, ai_message_data)
+            
+            logger.info(f"Saved voice messages to conversation {real_conversation_id}")
+        except Exception as e:
+            logger.warning(f"Failed to save voice messages to Firestore: {e}")
         
         # Format response to match VoiceCompanion expectations
         response = {
             "transcription": {
                 "text": result.get("transcript", ""),
-                "language": cultural_data.get("language", "en-US"),
-                "confidence": 0.9
+                "language": response_language,
+                "confidence": 0.9,
+                "detectedLanguage": detected_language
             },
-            "emotion": result.get("emotions", {
-                "primaryEmotion": "neutral",
-                "confidence": 0.5,
-                "stressLevel": 0.3,
-                "characteristics": {
-                    "pitch": 50,
-                    "volume": 50,
-                    "speed": 50,
-                    "clarity": 90
-                }
-            }),
+            "emotion": _format_emotion_response(result.get("emotions", {})),
             "aiResponse": {
                 "text": result.get("gemini_response", {}).get("response", "I understand. How can I help you today?"),
                 "crisisScore": result.get("gemini_response", {}).get("crisis_score", 0.1),
@@ -132,12 +279,29 @@ async def voice_pipeline_json(
             },
             "session": {
                 "sessionId": sessionId or f"session_{hash(audio_bytes) % 10000}",
-                "conversationId": conversationId or f"conv_{hash(audio_bytes) % 10000}",
+                "conversationId": real_conversation_id,  # Use real conversation ID
                 "timestamp": str(int(time.time()))
             }
         }
         
         logger.info(f"Pipeline successful - Transcript: '{response['transcription']['text'][:50]}...'")
+        
+        # Debug: Log the full response JSON to console for debugging
+        print("\n" + "="*60)
+        print("🎤 VOICE PIPELINE RESPONSE DEBUG")
+        print("="*60)
+        print(json.dumps({
+            "conversationId": real_conversation_id,
+            "contextUsed": len(conversation_context) > 0,
+            "contextLength": len(conversation_context),
+            "transcription": response['transcription']['text'],
+            "aiResponse": response['aiResponse']['text'][:200] + "..." if len(response['aiResponse']['text']) > 200 else response['aiResponse']['text'],
+            "hasAudio": bool(response['ttsAudio']['url']),
+            "emotion": response['emotion']['primaryEmotion'] if response.get('emotion') else None,
+            "crisisScore": response['aiResponse'].get('crisisScore', 0)
+        }, indent=2))
+        print("="*60 + "\n")
+        
         return response
         
     except Exception as e:

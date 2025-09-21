@@ -97,6 +97,9 @@ export interface UseSpeechLoopConfig {
     /** Cultural context for voice interactions */
     culturalContext?: Partial<VoiceCulturalContext>;
 
+    /** Initial conversation ID to maintain context with text chat */
+    initialConversationId?: string;
+
     /** Maximum upload timeout in milliseconds */
     uploadTimeout?: number;
 
@@ -162,6 +165,7 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
         apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1',
         authToken,
         culturalContext,
+        initialConversationId,
         uploadTimeout = parseInt(process.env.NEXT_PUBLIC_VOICE_UPLOAD_TIMEOUT || '30000'),
         processingTimeout = parseInt(process.env.NEXT_PUBLIC_VOICE_PROCESSING_TIMEOUT || '60000'),
         autoPlayResponses = true,
@@ -177,7 +181,7 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
     const [currentTranscription, setCurrentTranscription] = useState<string | null>(null);
     const [currentResponse, setCurrentResponse] = useState<string | null>(null);
     const [currentEmotion, setCurrentEmotion] = useState<VoiceEmotionAnalysis | null>(null);
-    const [conversationId, setConversationId] = useState<string | null>(null);
+    const [conversationId, setConversationId] = useState<string | null>(initialConversationId || null);
     const [sessionId, setSessionId] = useState<string | null>(null);
 
     // Refs for managing audio and requests
@@ -261,6 +265,15 @@ export const useSpeechLoop = (config: UseSpeechLoopConfig = {}): UseSpeechLoopRe
 
         if (culturalContext) {
             formData.append('culturalContext', JSON.stringify(culturalContext));
+        }
+
+        // Debug log for conversation context
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true') {
+            console.log('Voice context info:', {
+                conversationId: conversationId || 'None - will create new',
+                sessionId: currentSessionId,
+                hasContext: !!conversationId
+            });
         }
 
         // Setup abort controller for request cancellation

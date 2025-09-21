@@ -29,17 +29,20 @@ const MoodSelector = dynamic(() => import("./mood/MoodSelector"), {
 })
 
 // Dynamically import VoiceCompanion with no SSR to prevent hydration issues
-const VoiceCompanion = dynamic(() => import("./voice/VoiceCompanion"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center p-4">
-      <div className="text-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></div>
-        <p className="mt-2 text-sm text-zinc-600">Loading voice...</p>
+const VoiceCompanion = dynamic(
+  () => import("./voice/VoiceCompanion"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600"></div>
+          <p className="mt-2 text-sm text-zinc-600">Loading voice...</p>
+        </div>
       </div>
-    </div>
-  )
-})
+    )
+  }
+)
 
 // Component to format AI responses with proper markdown and spacing
 function FormattedResponse({ content }) {
@@ -449,6 +452,7 @@ const ChatPane = forwardRef(function ChatPane(
           <VoiceCompanion
             authToken={userAuthToken}
             culturalContext={userCulturalPreferences}
+            conversationId={conversation?.id}  // Pass current conversation ID
             chatPaneMode={true}
             crisisThreshold={0.7}
             onCrisisDetected={handleEmergency}

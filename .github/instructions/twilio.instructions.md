@@ -1,6 +1,3 @@
----
-applyTo: '**'
----
 
 # Feature: Twilio WhatsApp Crisis Notification Integration
 

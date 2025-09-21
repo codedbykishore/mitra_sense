@@ -59,36 +59,53 @@ class SpeechService:
 
     async def detect_language(self, audio_data: bytes, sample_rate: Optional[int] = None) -> str:
         """Automatically detect spoken language from audio."""
-        encoding, detected_sample_rate = self._detect_audio_format(audio_data)
-        actual_sample_rate = sample_rate or detected_sample_rate
-        
-        config = speech.RecognitionConfig(
-            encoding=encoding,
-            sample_rate_hertz=actual_sample_rate,
-            language_code=self.supported_languages[0],  # Primary language
-            alternative_language_codes=self.supported_languages[
-                1:
-            ],  # Fallback/alternate
-            enable_automatic_punctuation=True,
-        )
-        audio = speech.RecognitionAudio(content=audio_data)
-
         try:
+            encoding, detected_sample_rate = self._detect_audio_format(audio_data)
+            actual_sample_rate = sample_rate or detected_sample_rate
+            
+            # Explicitly set channel count for WebM OPUS (2 channels) to avoid API mismatch
+            channel_count = 2 if encoding == speech.RecognitionConfig.AudioEncoding.WEBM_OPUS else 1
+            
+            config = speech.RecognitionConfig(
+                encoding=encoding,
+                sample_rate_hertz=actual_sample_rate,
+                language_code=self.supported_languages[0],  # Primary language
+                alternative_language_codes=self.supported_languages[
+                    1:
+                ] if len(self.supported_languages) > 1 else [],  # Fallback/alternate
+                enable_automatic_punctuation=True,
+                audio_channel_count=channel_count,  # Explicitly set to match WebM OPUS (2) or default (1)
+            )
+            audio = speech.RecognitionAudio(content=audio_data)
+
             response = await asyncio.to_thread(
                 self.speech_client.recognize, config=config, audio=audio
             )
-            if response.results:
-                transcript = response.results[0].alternatives[0].transcript
-                detected_language = (
-                    response.results[0].language_code
-                    if hasattr(response.results[0], "language_code")
-                    else "en"
-                )
-                return detected_language
+            
+            if response.results and len(response.results) > 0:
+                # Try to get detected language from response
+                result = response.results[0]
+                if hasattr(result, "language_code") and result.language_code:
+                    return result.language_code
+                
+                # Fallback: check if we have alternative language results
+                if hasattr(result, 'alternatives') and len(result.alternatives) > 0:
+                    alternative = result.alternatives[0]
+                    if hasattr(alternative, 'language_code') and alternative.language_code:
+                        return alternative.language_code
+            
+            # No language detected, return default
+            logger.warning("No language detected from audio, using default")
             return settings.DEFAULT_LANGUAGE  # fallback
+            
         except GoogleAPIError as e:
-            logger.error(f"Language detection failed: {e}")
-            raise HTTPException(status_code=500, detail="Language detection error")
+            logger.error(f"Google API language detection failed: {e}")
+            # Don't raise HTTP exception, return default language instead
+            return settings.DEFAULT_LANGUAGE
+        except Exception as e:
+            logger.error(f"Unexpected error in language detection: {e}")
+            # Return default language for any other errors
+            return settings.DEFAULT_LANGUAGE
 
     # 1. Speech-to-Text (Multilingual) - Your Core Function
     async def transcribe_audio(
@@ -105,13 +122,18 @@ class SpeechService:
             language = await self.detect_language(
                 audio_data, actual_sample_rate
             )  # Auto-detect if not provided
+            logger.info(f"Language detection: Detected '{language}' from audio")
 
+        # Explicitly set channel count for WebM OPUS (2 channels) to avoid API mismatch
+        channel_count = 2 if encoding == speech.RecognitionConfig.AudioEncoding.WEBM_OPUS else 1
+        
         config = speech.RecognitionConfig(
             encoding=encoding,
             sample_rate_hertz=actual_sample_rate,
             language_code=language,
             enable_automatic_punctuation=True,
             model="latest_long",  # For longer conversations
+            audio_channel_count=channel_count,  # Explicitly set to match WebM OPUS (2) or default (1)
         )
 
         audio = speech.RecognitionAudio(content=audio_data)
@@ -137,6 +159,7 @@ class SpeechService:
                 return "", 0.0
         except GoogleAPIError as e:
             logger.error(f"STT failed: {e}")
+            # Force reload - Fixed channel count issue at 14:32
             raise HTTPException(status_code=500, detail="Speech recognition error")
 
     # 2. Synthesize Response - Your Function with Cultural Enhancements
@@ -151,6 +174,11 @@ class SpeechService:
                 "language_code": "en-US",
                 "speaking_rate": 0.9,
             },
+            "en-GB": {
+                "name": "en-GB-Neural2-B",
+                "language_code": "en-GB", 
+                "speaking_rate": 0.9,
+            },
             "en-IN": {
                 "name": "en-IN-Neural2-B",
                 "language_code": "en-IN",
@@ -161,6 +189,37 @@ class SpeechService:
                 "language_code": "hi-IN",
                 "speaking_rate": 0.9,
             },
+            "es-ES": {
+                "name": "es-ES-Neural2-A",
+                "language_code": "es-ES",
+                "speaking_rate": 0.9,
+            },
+            "fr-FR": {
+                "name": "fr-FR-Neural2-A",
+                "language_code": "fr-FR",
+                "speaking_rate": 0.9,
+            },
+            # Base language codes (without region)
+            "en": {
+                "name": "en-US-Neural2-C",
+                "language_code": "en-US",
+                "speaking_rate": 0.9,
+            },
+            "hi": {
+                "name": "hi-IN-Neural2-A",
+                "language_code": "hi-IN",
+                "speaking_rate": 0.9,
+            },
+            "es": {
+                "name": "es-ES-Neural2-A",
+                "language_code": "es-ES",
+                "speaking_rate": 0.9,
+            },
+            "fr": {
+                "name": "fr-FR-Neural2-A",
+                "language_code": "fr-FR",
+                "speaking_rate": 0.9,
+            },
             "default": {
                 "name": "en-US-Neural2-C",
                 "language_code": "en-US",
@@ -168,8 +227,10 @@ class SpeechService:
             },
         }
 
-        voice_key = language.upper().replace("_", "-")  # normalize language code
+        voice_key = language.replace("_", "-")  # normalize language code (keep original case)
         voice_config = voice_map.get(voice_key, voice_map["default"])
+        
+        logger.info(f"TTS: Input language='{language}', Voice key='{voice_key}', Using voice='{voice_config['name']}')")
 
         synthesis_input = texttospeech.SynthesisInput(text=text)
         voice = texttospeech.VoiceSelectionParams(
@@ -282,9 +343,74 @@ class SpeechService:
             "emotions": emotions,
         }
 
+    async def process_voice_pipeline_optimized(self, audio_data: bytes, conversation_context: str = "", pipeline_options: Dict = None) -> Dict:
+        """
+        Voice-optimized pipeline: Shorter responses, TTS-friendly, no asterisks.
+        Uses voice-specific Gemini processing for 15-second responses with conversation context.
+        """
+        pipeline_options = pipeline_options or {}
+        logger.info(f"Voice-optimized pipeline received audio_data. Length: {len(audio_data)} bytes")
+        
+        # Use forced language if provided, otherwise detect from audio
+        force_language = pipeline_options.get("force_language")
+        cultural_language = pipeline_options.get("cultural_language")
+        
+        if force_language:
+            language = force_language
+            logger.info(f"Using forced language: {language}")
+        else:
+            language = await self.detect_language(audio_data)
+            logger.info(f"Detected language from audio: {language}")
+        
+        # Transcribe with the determined language
+        transcript, _ = await self.transcribe_audio(audio_data, language)
+        logger.info(f"Transcript: {transcript}")
+
+        # Use voice-optimized Gemini processing with conversation context
+        # Pass the STT detected language to help Gemini avoid incorrect language detection
+        gemini_options = {
+            "language": language,  # STT detected language for context
+            "conversation_context": conversation_context,
+            "force_response_language": force_language or cultural_language,  # Force response in specific language
+            "stt_language": language  # Pass STT language to override Gemini's detection
+        }
+        if conversation_context:
+            logger.info(f"Voice context: Including {len(conversation_context)} chars of conversation history")
+            # Debug: Print context to console
+            print(f"\n🔍 VOICE CONTEXT DEBUG:")
+            print(f"Context length: {len(conversation_context)} characters")
+            print(f"Context preview: '{conversation_context[:300]}...'")
+        else:
+            print(f"\n⚠️  NO VOICE CONTEXT - conversation_context is empty")
+        
+        gemini_response = await self.gemini_service.process_voice_conversation(
+            transcript, gemini_options
+        )
+        logger.info(f"Voice-optimized Gemini response: {gemini_response}")
+        logger.info(f"Voice pipeline: Input language='{language}', Response will be synthesized in same language")
+
+        # Synthesize audio with cleaned response
+        audio_output = await self.synthesize_response(
+            gemini_response["response"], language
+        )
+        logger.info(f"Voice-optimized audio output length: {len(audio_output)} bytes")
+
+        # Detect emotions
+        emotions = await self.detect_emotional_tone(audio_data, language)
+        logger.info(f"Detected emotions: {emotions}")
+
+        return {
+            "transcript": transcript,
+            "gemini_response": gemini_response,
+            "audio_output": audio_output,  # Bytes for response
+            "emotions": emotions,
+            "detected_language": language,  # Include detected language in result
+        }
+
     # NEW: Audio Validation (Recommended Addition)
     def validate_audio(self, audio_data: bytes) -> bool:
         """Validate audio input before processing."""
+        # Fixed channel count issue 14:32 - Force reload
         if len(audio_data) < 1024:  # Too short
             raise ValueError("Audio too short")
         if len(audio_data) > 10 * 1024 * 1024:  # >10MB

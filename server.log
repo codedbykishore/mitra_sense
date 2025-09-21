@@ -1,0 +1,141 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/home/kinux/projects/mitra_sense']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [619590] using StatReload
+2025-09-21 16:00:26,290 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+/home/kinux/projects/mitra_sense/venv/lib/python3.13/site-packages/vertexai/generative_models/_generative_models.py:433: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+2025-09-21 16:00:26,291 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:00:26,356 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:26,410 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:26,410 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:00:26,410 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:00:26,464 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:26,517 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:26,759 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:00:26,759 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:00:26,759 - app.services.google_speech - INFO - Google Speech services initialized successfully
+2025-09-21 16:00:26,759 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:00:26,760 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:00:26,861 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,104 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,160 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,218 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,271 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,329 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,329 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+/home/kinux/projects/mitra_sense/venv/lib/python3.13/site-packages/vertexai/generative_models/_generative_models.py:433: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+2025-09-21 16:00:27,329 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:00:27,383 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,436 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,495 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,495 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:00:27,495 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:00:27,555 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:27,578 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:00:27,579 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+INFO:     Started server process [619647]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:52408 - "GET /health HTTP/1.1" 404 Not Found
+2025-09-21 16:00:41,450 - app.routes.voice - INFO - Voice pipeline request - File: test.webm, Duration: 0s, Session: 
+2025-09-21 16:00:41,450 - app.routes.voice - INFO - Audio data size: 27 bytes
+2025-09-21 16:00:41,450 - app.services.google_speech - INFO - Voice-optimized pipeline received audio_data. Length: 27 bytes
+2025-09-21 16:00:41,450 - app.services.google_speech - WARNING - Unknown audio format, defaulting to LINEAR16
+2025-09-21 16:00:43,009 - app.services.google_speech - WARNING - No language detected from audio, using default
+2025-09-21 16:00:43,010 - app.services.google_speech - INFO - Detected language from audio: en-US
+2025-09-21 16:00:43,016 - app.services.google_speech - WARNING - Unknown audio format, defaulting to LINEAR16
+2025-09-21 16:00:43,815 - app.services.google_speech - INFO - Transcript: 
+2025-09-21 16:00:43,816 - app.services.gemini_ai - INFO - Voice conversation options: {'language': 'en-US', 'conversation_context': '', 'force_response_language': None, 'stt_language': 'en-US'}
+2025-09-21 16:00:43,816 - app.services.gemini_ai - INFO - STT language from options: en-US
+2025-09-21 16:00:43,816 - app.services.gemini_ai - INFO - Force response language: None
+2025-09-21 16:00:43,816 - app.services.gemini_ai - INFO - Voice mode - Using STT language: en (normalized from en-US, STT confidence: 0.95)
+2025-09-21 16:00:43,816 - app.services.gemini_ai - INFO - Voice mode - Skipping text-based language detection, using STT: en
+2025-09-21 16:00:43,816 - app.services.gemini_ai - INFO - Final response language: en
+2025-09-21 16:00:47,664 - app.services.google_speech - INFO - Voice-optimized Gemini response: {'response': 'Thanks for telling me. That sounds heavy. Do you want me to just listen, or help plan one next step? Okay, I’m here. Take your time.'}
+2025-09-21 16:00:47,664 - app.services.google_speech - INFO - Voice pipeline: Input language='en-US', Response will be synthesized in same language
+2025-09-21 16:00:47,664 - app.services.google_speech - INFO - TTS: Input language='en-US', Voice key='en-US', Using voice='en-US-Neural2-C')
+2025-09-21 16:00:48,856 - app.services.google_speech - INFO - Voice-optimized audio output length: 78912 bytes
+2025-09-21 16:00:48,857 - app.services.google_speech - WARNING - Unknown audio format, defaulting to LINEAR16
+2025-09-21 16:00:49,711 - app.services.gemini_ai - INFO - Detected language: en (confidence: 1.00)
+2025-09-21 16:00:49,711 - app.services.gemini_ai - INFO - Processing with language: en, Detected: en, Confidence: 1.00
+2025-09-21 16:00:53,274 - app.services.google_speech - WARNING - Gemini emotion detection failed, using fallback: Expecting value: line 1 column 1 (char 0)
+2025-09-21 16:00:53,275 - app.services.google_speech - INFO - Detected emotions: {'anxiety': 0, 'sadness': 0, 'calmness': 0.5, 'anger': 0.0}
+2025-09-21 16:00:53,275 - app.routes.voice - INFO - Language info - Detected: en-US, Using: en-US
+2025-09-21 16:00:53,340 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+/home/kinux/projects/mitra_sense/venv/lib/python3.13/site-packages/google/cloud/firestore_v1/base_collection.py:304: UserWarning: Detected filter using positional arguments. Prefer using the 'filter' keyword argument instead.
+  return query.where(field_path, op_string, value)
+2025-09-21 16:00:55,073 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:00:57,216 - app.routes.voice - INFO - Saved voice messages to conversation fc6f96b6-e680-41ad-9df6-8987004209b8
+2025-09-21 16:00:57,217 - app.routes.voice - INFO - Pipeline successful - Transcript: '...'
+
+🔍 VOICE CONTEXT RETRIEVAL DEBUG:
+Provided conversationId: ''
+sessionId: ''
+No conversationId provided - no context will be used
+
+⚠️  NO VOICE CONTEXT - conversation_context is empty
+
+============================================================
+🎤 VOICE PIPELINE RESPONSE DEBUG
+============================================================
+{
+  "conversationId": "fc6f96b6-e680-41ad-9df6-8987004209b8",
+  "contextUsed": false,
+  "contextLength": 0,
+  "transcription": "",
+  "aiResponse": "Thanks for telling me. That sounds heavy. Do you want me to just listen, or help plan one next step? Okay, I\u2019m here. Take your time.",
+  "hasAudio": true,
+  "emotion": "calmness",
+  "crisisScore": 0.1
+}
+============================================================
+
+INFO:     127.0.0.1:49270 - "POST /api/v1/voice/pipeline/audio HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/routes/voice.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [619647]
+2025-09-21 16:02:33,720 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+/home/kinux/projects/mitra_sense/venv/lib/python3.13/site-packages/vertexai/generative_models/_generative_models.py:433: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+2025-09-21 16:02:33,721 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:02:33,784 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:33,838 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:33,838 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:02:33,838 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:02:33,892 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:33,946 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,194 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:02:34,194 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:02:34,194 - app.services.google_speech - INFO - Google Speech services initialized successfully
+2025-09-21 16:02:34,194 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:02:34,194 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:02:34,298 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,587 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,643 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,702 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,756 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,815 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,815 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+/home/kinux/projects/mitra_sense/venv/lib/python3.13/site-packages/vertexai/generative_models/_generative_models.py:433: UserWarning: This feature is deprecated as of June 24, 2025 and will be removed on June 24, 2026. For details, see https://cloud.google.com/vertex-ai/generative-ai/docs/deprecations/genai-vertexai-sdk.
+  warning_logs.show_deprecation_warning()
+2025-09-21 16:02:34,815 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:02:34,869 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,923 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,982 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:34,982 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:02:34,982 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+2025-09-21 16:02:35,043 - app.services.firestore - INFO - Initialized Firestore with project: ordinal-rig-470915-d0
+2025-09-21 16:02:35,067 - app.services.gemini_ai - INFO - Vertex AI API initialized successfully for GeminiService.
+2025-09-21 16:02:35,067 - app.services.gemini_ai - INFO - RAG support enabled with corpus: projects/ordinal-rig-470915-d0/locations/us-east4/ragCorpora/6917529027641081856
+INFO:     Started server process [620849]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [620849]
+INFO:     Stopping reloader process [619590]

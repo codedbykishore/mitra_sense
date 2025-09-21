@@ -35,10 +35,10 @@ export default function Breadcrumb() {
       }
     }
 
-    if (pathname === "/voice-demo") {
+    if (pathname === "/voice-messaging") {
       items.push({
-        label: "Voice Demo",
-        href: "/voice-demo",
+        label: "Voice Messaging",
+        href: "/voice-messaging",
         current: true
       })
     }

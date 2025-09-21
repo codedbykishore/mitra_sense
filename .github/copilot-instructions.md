@@ -425,3 +425,11 @@ starlette                        # Session management
 - **Accessibility**: Voice support for varying literacy levels
 
 **Always provide context and explanation with code changes, never just raw code blocks.**
+
+## Terminal Guidelines
+
+- Always source venv/bin/activate for Python environment
+- Use `uvicorn app.main:app --reload` for backend with auto-reload
+- Use `npm run dev` in `frontend/` for Next.js with hot-reload
+- Do not export GOOGLE_APPLICATION_CREDENTIALS we already have it set in the environment
+- Always cd into `frontend/` before running npm commands
