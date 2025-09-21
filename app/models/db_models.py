@@ -113,6 +113,23 @@ class CrisisAlert(BaseModel):
     resolved_at: Optional[datetime] = None
 
 
+class InstitutionNotification(BaseModel):
+    """Notification shown on institution dashboard (privacy-preserving)."""
+    notification_id: str
+    institution_id: str
+    user_id: str  # student user_id; no PII beyond ID
+    type: str = Field(default="crisis")  # e.g., crisis, info, system
+    severity: str = Field(default="high")  # low/medium/high
+    risk_score: int = 0
+    risk_level: str = "low"
+    reason: Optional[str] = None  # brief, non-sensitive reason string
+    status: str = Field(default="unread")  # unread/read/acknowledged
+    metadata: Dict[str, str] = Field(default_factory=dict)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+
 class Mood(BaseModel):
     """Mood entry for students."""
     mood_id: str

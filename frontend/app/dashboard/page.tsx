@@ -12,6 +12,7 @@ import { StudentInfo } from "@/types/student";
 import StudentListPanel from "@/components/dashboard/StudentListPanel";
 import MoodSummaryPanel from "@/components/dashboard/MoodSummaryPanel";
 import ConversationListPanel from "@/components/dashboard/ConversationListPanel";
+import NotificationsPanel from "@/components/dashboard/NotificationsPanel";
 import Breadcrumb from "@/components/Breadcrumb";
 import QuickActions from "@/components/QuickActions";
 
@@ -83,6 +84,9 @@ export default function DashboardPage() {
               selectedStudent={selectedStudent}
               onStudentSelect={setSelectedStudent}
             />
+            <div className="mt-6 hidden lg:block">
+              <NotificationsPanel />
+            </div>
           </div>
 
           {/* Main Content Area */}
@@ -116,6 +120,10 @@ export default function DashboardPage() {
               </Card>
 
               <Card>
+                <TabsTrigger value="notifications" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Notifications
+                </TabsTrigger>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Conversations</CardTitle>
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -127,6 +135,10 @@ export default function DashboardPage() {
                   </p>
                 </CardContent>
               </Card>
+
+              <TabsContent value="notifications" className="space-y-4">
+                <NotificationsPanel />
+              </TabsContent>
             </div>
 
             {/* Tabbed Content */}
@@ -136,7 +148,7 @@ export default function DashboardPage() {
                   {selectedStudent ? `${selectedStudent.name} - Details` : "Overview"}
                 </CardTitle>
                 <CardDescription>
-                  {selectedStudent 
+                  {selectedStudent
                     ? `View mood history and conversations for ${selectedStudent.name}`
                     : "Select a student from the list to view detailed information"
                   }
