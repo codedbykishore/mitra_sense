@@ -53,6 +53,9 @@ export interface VoiceCompanionProps {
         greetingStyle: 'formal' | 'informal' | 'traditional';
     };
 
+    /** Conversation ID to maintain context with text chat */
+    conversationId?: string;
+
     /** Crisis detection threshold (0-1, default 0.7) */
     crisisThreshold?: number;
 
@@ -90,6 +93,7 @@ export interface VoiceCompanionProps {
 export const VoiceCompanion: React.FC<VoiceCompanionProps> = ({
     authToken,
     culturalContext,
+    conversationId,
     crisisThreshold = 0.7,
     onCrisisDetected,
     onInteractionComplete,
@@ -118,7 +122,7 @@ export const VoiceCompanion: React.FC<VoiceCompanionProps> = ({
         currentTranscription,
         currentResponse,
         currentEmotion,
-        conversationId,
+        conversationId: hookConversationId,
         sessionId,
         startRecording,
         stopRecording,
@@ -130,6 +134,7 @@ export const VoiceCompanion: React.FC<VoiceCompanionProps> = ({
     } = useSpeechLoop({
         authToken,
         culturalContext,
+        initialConversationId: conversationId, // Pass the prop as initial conversation ID
         autoPlayResponses: false, // We'll control playback manually
         enableContextPersistence: true,
 
@@ -612,12 +617,12 @@ export const VoiceCompanion: React.FC<VoiceCompanionProps> = ({
                 )}
 
                 {/* Session Info */}
-                {(conversationId || sessionId) && showAdvancedControls && (
+                {(hookConversationId || sessionId) && showAdvancedControls && (
                     <div className="text-center text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                        {conversationId && (
+                        {hookConversationId && (
                             <p>
                                 {culturalContext?.language?.startsWith('hi') ? 'बातचीत ID' : 'Conversation ID'}: 
-                                {conversationId.substring(0, 8)}...
+                                {hookConversationId.substring(0, 8)}...
                             </p>
                         )}
                         <p>

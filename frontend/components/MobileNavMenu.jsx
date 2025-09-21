@@ -23,10 +23,10 @@ export default function MobileNavMenu() {
         description: "AI Assistant Chat"
       },
       { 
-        href: "/voice-demo", 
+        href: "/voice-messaging", 
         label: "Voice", 
         icon: Mic,
-        description: "Voice Features"
+        description: "Voice Messaging"
       },
     ]
 

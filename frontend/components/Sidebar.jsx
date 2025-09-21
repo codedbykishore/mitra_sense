@@ -27,10 +27,10 @@ function MainNavSection({ user }) {
       description: "AI Assistant"
     },
     {
-      href: "/voice-demo",
+      href: "/voice-messaging",
       label: "Voice",
       icon: Mic,
-      description: "Voice Features"
+      description: "Voice Messaging"
     }
   ]
 
@@ -166,9 +166,9 @@ export default function Sidebar({
             </button>
 
             <button
-              onClick={() => window.location.href = "/voice-demo"}
+              onClick={() => window.location.href = "/voice-messaging"}
               className="rounded-xl p-2 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-zinc-800"
-              title="Voice Features"
+              title="Voice Messaging"
             >
               <Mic className="h-5 w-5" />
             </button>
