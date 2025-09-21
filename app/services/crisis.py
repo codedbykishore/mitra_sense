@@ -6,6 +6,8 @@ from typing import Optional, Dict, Any
 from app.services import gemini_ai
 from app.models.db_models import User
 from app.models.db_models import CrisisAlert
+from app.models.db_models import InstitutionNotification
+from app.services.firestore import FirestoreService
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +174,31 @@ class CrisisService:
             "notes": notes,
         }
         await self._log_escalation(escalation_doc)
+
+        # Create institution dashboard notification for high risk if student belongs to an institution
+        try:
+            if risk_level == "high" and self.firestore:
+                # Instantiate helper service to reuse existing methods easily
+                fs = FirestoreService()
+                institution_id = await fs.get_institution_id_for_user(user_id)
+                if institution_id:
+                    import uuid
+                    notif = InstitutionNotification(
+                        notification_id=str(uuid.uuid4()),
+                        institution_id=institution_id,
+                        user_id=user_id,
+                        type="crisis",
+                        severity="high",
+                        risk_score=risk_score,
+                        risk_level=risk_level,
+                        reason="auto-escalation",
+                        status="unread",
+                        metadata={"source": "crisis.escalate"},
+                    )
+                    await fs.create_institution_notification(notif)
+                    logger.info(f"Institution notification created for institution {institution_id} user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to create institution notification: {e}")
 
         # Tele MANAS stub
         telemanas_result = None

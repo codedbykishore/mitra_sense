@@ -44,9 +44,11 @@ from app.routes.students import router as students_router
 from app.routes.mood import router as mood_router
 from app.routes.crisis import router as crisis_router
 from app.routes.privacy import router as privacy_router
+from app.routes.notifications import router as notifications_router
 from app.services.gemini_ai import GeminiService
 
 app.include_router(crisis_router, prefix="/api/v1/crisis", tags=["crisis"])
+app.include_router(notifications_router, prefix="/api/v1", tags=["notifications"])
 app.include_router(input_router, prefix="/api/v1/input")
 app.include_router(voice_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])

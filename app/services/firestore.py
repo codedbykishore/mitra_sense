@@ -2,7 +2,7 @@
 from typing import Optional, List
 from google.cloud import firestore
 from app.models.db_models import (
-    User, Conversation, Message, PeerCircle, CrisisAlert, Institution
+    User, Conversation, Message, PeerCircle, CrisisAlert, Institution, InstitutionNotification
 )
 from app.config import settings
 import logging
@@ -289,6 +289,39 @@ class FirestoreService:
     async def delete_crisis_alert(self, alert_id: str) -> None:
         await self.db.collection("crisis_alerts").document(alert_id).delete()
 
+    # ---------- INSTITUTION NOTIFICATIONS ----------
+    async def create_institution_notification(self, notification: InstitutionNotification) -> None:
+        """Create an institution dashboard notification."""
+        await (
+            self.db.collection("institution_notifications")
+            .document(notification.notification_id)
+            .set(notification.model_dump())
+        )
+
+    async def list_institution_notifications(self, institution_id: str, limit: int = 50) -> List[dict]:
+        """List recent notifications for an institution (newest first)."""
+        try:
+            coll = self.db.collection("institution_notifications")
+            query = (
+                coll.where("institution_id", "==", institution_id)
+                .order_by("created_at", direction="DESCENDING")
+                .limit(limit)
+            )
+            items = []
+            async for doc in query.stream():
+                items.append(doc.to_dict())
+            return items
+        except Exception as e:
+            logger.error(f"Error listing notifications for institution {institution_id}: {e}")
+            return []
+
+    async def mark_notification_read(self, notification_id: str) -> None:
+        await (
+            self.db.collection("institution_notifications")
+            .document(notification_id)
+            .update({"status": "read"})
+        )
+
     # ---------- INSTITUTION ----------
     async def create_institution(self, institution: Institution) -> None:
         """Create a new institution."""
@@ -317,6 +350,18 @@ class FirestoreService:
             return Institution(**doc.to_dict())
         return None
 
+    async def get_institution_id_for_user(self, user_id: str) -> Optional[str]:
+        """Get the student's institution_id from users collection."""
+        try:
+            user_doc = await self.db.collection("users").document(user_id).get()
+            if user_doc.exists:
+                data = user_doc.to_dict()
+                return data.get("institution_id")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get institution for user {user_id}: {e}")
+            return None
+
     async def get_institution_by_name(self, name: str) -> Optional[Institution]:
         """Get institution by name (case-insensitive)."""
         coll_ref = self.db.collection("institutions")
@@ -325,6 +370,14 @@ class FirestoreService:
         async for doc in query.stream():
             return Institution(**doc.to_dict())
         
+        return None
+
+    async def get_institution_by_owner_user(self, owner_user_id: str) -> Optional[Institution]:
+        """Get institution created/owned by a specific user_id."""
+        coll_ref = self.db.collection("institutions")
+        query = coll_ref.where("user_id", "==", owner_user_id)
+        async for doc in query.stream():
+            return Institution(**doc.to_dict())
         return None
 
     async def list_institutions(self) -> List[Institution]:
