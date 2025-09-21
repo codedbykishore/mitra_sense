@@ -13,7 +13,7 @@ load_dotenv()
 class Settings(BaseSettings):
     # Declare fields so Pydantic knows them
     GOOGLE_CREDENTIALS_FILE: str = str(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-    GOOGLE_PROJECT_ID: str | None = None
+    GOOGLE_PROJECT_ID: str | None = str(os.getenv("GOOGLE_PROJECT_ID")) if os.getenv("GOOGLE_PROJECT_ID") else None
     GOOGLE_CLIENT_EMAIL: str | None = None
 
     GOOGLE_CLIENT_ID: str = str(os.getenv("GOOGLE_CLIENT_ID"))

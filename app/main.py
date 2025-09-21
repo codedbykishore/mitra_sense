@@ -68,6 +68,12 @@ def root():
     return {"message": "root end point"}
 
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Cloud Run"""
+    return {"status": "healthy", "service": "mitra-backend"}
+
+
 @app.middleware("http")
 async def block_well_known(request: Request, call_next):
     if request.url.path.startswith("/.well-known"):
