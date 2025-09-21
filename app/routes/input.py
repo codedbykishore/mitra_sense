@@ -73,6 +73,40 @@ def format_rag_context(rag_results: List[Dict[str, Any]]) -> str:
 
     return "\n\n".join(context_parts)
 
+    #...
+
+    # --- Language utilities ---
+def _normalize_language_code(lang: Optional[str]) -> str:
+    """Normalize various language inputs to a base code used in RAG metadata.
+
+    Examples:
+    - "en-US", "EN", "english" -> "en"
+    - "hi-IN", "Hindi" -> "hi"
+    - "ta", "Tamil" -> "ta"
+    - "te", "Telugu" -> "te"
+    Fallback: first token before '-' lowercased, or 'en' if empty.
+    """
+    if not lang:
+        return "en"
+    l = str(lang).strip().lower()
+    # Map common names/synonyms
+    name_map = {
+        "english": "en",
+        "en": "en",
+        "en-us": "en",
+        "en-gb": "en",
+        "hindi": "hi",
+        "hi": "hi",
+        "hi-in": "hi",
+        "tamil": "ta",
+        "ta": "ta",
+        "telugu": "te",
+        "te": "te",
+    }
+    if l in name_map:
+        return name_map[l]
+    # Default: take base before '-'
+    return l.split("-")[0]
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(
@@ -141,6 +175,9 @@ async def chat_endpoint(
         except LangDetectException:
             detected_language = "en"
 
+        # Normalize and select language for RAG + response
+        selected_language = _normalize_language_code(detected_language or req.language)
+
         # Save user message to Firestore
         user_message_id = str(uuid.uuid4())
         user_message_data = {
@@ -183,10 +220,16 @@ async def chat_endpoint(
         # Get relevant context from RAG
         rag_results = await rag_service.retrieve_with_metadata(
             query=req.text,
-            language=req.language,
+            language=selected_language,
             region=req.region,
             max_results=req.max_rag_results,
         )
+
+        # Defensive filter: ensure all results match the selected language
+        rag_results = [
+            r for r in rag_results
+            if str(r.get("language", "")).split('-')[0].lower() == selected_language
+        ]
 
         # Format the context for the LLM
         rag_context = format_rag_context(rag_results)
@@ -210,7 +253,7 @@ async def chat_endpoint(
         result = await gemini_service.process_cultural_conversation(
             text=req.text,
             options=enhanced_context,  # Pass context as options
-            language=req.language,
+            language=selected_language,
         )
 
         # Format the response with sources
@@ -226,7 +269,7 @@ async def chat_endpoint(
             "timestamp": datetime.now(timezone.utc),
             "metadata": {
                 "source": "ai",
-                "language": detected_language,
+                "language": selected_language,
                 "embedding_id": None,
                 "emotion_score": "{}"
             }

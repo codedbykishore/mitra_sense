@@ -24,12 +24,12 @@ class Settings(BaseSettings):
 
     SUPPORTED_LANGUAGES: list[str] = [
         "en-US",  # English (US)
-        "en-GB",  # English (UK)
-        "es-ES",  # Spanish (Spain)
-        "fr-FR",  # French
+        "en-IN",  # English (IN)
         "hi-IN",  # Hindi (India)
+        "ta-IN",
+        "te-IN"
     ]
-    DEFAULT_LANGUAGE: str = "en-US"
+    DEFAULT_LANGUAGE: str = "en-IN"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

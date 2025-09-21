@@ -68,30 +68,37 @@ class GeminiService:
         Returns:
             Configured Tool instance for RAG
         """
-        # Base retrieval config
-        rag_retrieval_config = rag.RagRetrievalConfig(top_k=3)
-        
-        # Add language filter if specified
-        rag_filters = []
+        # Normalize language to base code expected in RAG metadata (e.g., "en" from "en-US")
+        base_lang = None
         if language:
-            rag_filters.append(f"language='{language}'")
-            logger.debug(f"Adding language filter: {language}")
-        
-        # Create the RAG resource (without filters for now - filter format issue)
-        rag_resource = rag.RagResource(
-            rag_corpus=self.rag_corpus_name
-            # Note: rag_filters parameter format needs verification
+            try:
+                base_lang = language.split("-")[0].lower().strip()
+            except Exception:
+                base_lang = language.lower().strip()
+
+        # Build retrieval config with metadata filter when language is provided
+        metadata_filter = None
+        if base_lang:
+            # Vertex RAG filter uses a string expression, matching how RAGService builds it
+            metadata_filter = f'language="{base_lang}"'
+            logger.debug(f"RAG tool language filter applied: {metadata_filter}")
+
+        rag_retrieval_config = rag.RagRetrievalConfig(
+            top_k=3,
+            filter=rag.Filter(metadata_filter=metadata_filter) if metadata_filter else None,
         )
-        
+
+        # Create the RAG resource
+        rag_resource = rag.RagResource(rag_corpus=self.rag_corpus_name)
+
         return Tool.from_retrieval(
             retrieval=rag.Retrieval(
                 source=rag.VertexRagStore(
                     rag_resources=[rag_resource],
-                    rag_retrieval_config=rag_retrieval_config
+                    rag_retrieval_config=rag_retrieval_config,
                 ),
             )
         )
-        
     async def analyze(self, text: str, language: Optional[str] = None) -> Any:
         """
         Run the model.generate_content call with optional RAG and language filtering.
@@ -109,8 +116,20 @@ class GeminiService:
             
             # Add language instruction if specified
             if language:
-                lang_name = self.get_language_name(language)
-                contents.append(f"Please respond in {lang_name}.")
+                # Normalize to base language code for naming
+                try:
+                    base_lang = language.split('-')[0].lower()
+                except Exception:
+                    base_lang = str(language).lower()
+                lang_name = self.get_language_name(base_lang)
+                # Strong, explicit constraint to avoid code-switching
+                contents.append(
+                    (
+                        f"IMPORTANT LANGUAGE RULE: Respond only in {lang_name}. "
+                        f"If any context or sources are in another language, translate them to {lang_name} and keep your response strictly in {lang_name}. "
+                        f"Do not mix languages or code-switch."
+                    )
+                )
             
             # Add RAG tool if enabled
             if self.rag_enabled:
@@ -133,6 +152,58 @@ class GeminiService:
                 self.rag_enabled = False
                 return await self.analyze(text, language)
             raise
+
+    async def _translate_to_language(self, text: str, target_lang: str) -> str:
+        """
+        Translate text to the target language using the model with a strict instruction.
+
+        This avoids relying on RAG and focuses purely on translation fidelity.
+        """
+        def sync_call():
+            try:
+                # Use a concise, strict translation instruction
+                try:
+                    base_lang = (target_lang or 'en').split('-')[0].lower()
+                except Exception:
+                    base_lang = 'en'
+                lang_name = self.get_language_name(base_lang)
+                prompt = (
+                    f"Translate the following into {lang_name}. Return ONLY the translated text without quotes or explanations.\n\n"
+                    f"Text:\n{text}"
+                )
+                resp = self.model.generate_content(contents=[prompt])
+                # Extract text
+                value = getattr(resp, 'text', None)
+                if not value and isinstance(resp, dict):
+                    value = resp.get('response') or resp.get('output') or resp.get('content')
+                return value or str(resp)
+            except Exception as ex:
+                logger.error(f"Translation via Gemini failed: {ex}")
+                # As a last resort, return original text to avoid breaking pipeline
+                return text
+        return await asyncio.to_thread(sync_call)
+
+    async def _ensure_output_language(self, text: str, target_lang: str) -> str:
+        """
+        Ensure output text matches the target language (base code). If mismatch, translate.
+        """
+        if not text:
+            return text
+        try:
+            target_base = (target_lang or 'en').split('-')[0].lower()
+        except Exception:
+            target_base = 'en'
+        try:
+            detected_lang, _ = self.detect_language(text)
+            if (detected_lang or '').split('-')[0].lower() != target_base:
+                logger.info(
+                    f"Output language '{detected_lang}' != target '{target_base}'. Auto-translating to target."
+                )
+                return await self._translate_to_language(text, target_lang)
+            return text
+        except Exception as ex:
+            logger.warning(f"Language check failed, returning original text: {ex}")
+            return text
     
 
     async def analyze_risk(self, text: str, language: Optional[str] = None) -> int:
@@ -232,18 +303,6 @@ class GeminiService:
         LANGUAGE_NAMES = {
             'en': 'English',
             'hi': 'Hindi',
-            'es': 'Spanish',
-            'fr': 'French',
-            'de': 'German',
-            'it': 'Italian',
-            'pt': 'Portuguese',
-            'ru': 'Russian',
-            'zh': 'Chinese',
-            'ja': 'Japanese',
-            'ko': 'Korean',
-            'ar': 'Arabic',
-            'bn': 'Bengali',
-            'pa': 'Punjabi',
             'ta': 'Tamil',
             'te': 'Telugu',
             'mr': 'Marathi',
@@ -324,6 +383,15 @@ FORMATTING RULES:
 - Put final questions on separate lines
 - Keep sentences clear and readable
 - Be warm and encouraging"""
+        # Append a strong language constraint to the prompt
+        try:
+            base_lang = (response_language or 'en').split('-')[0].lower()
+        except Exception:
+            base_lang = 'en'
+        lang_name = self.get_language_name(base_lang)
+        prompt += (
+            f"\n\nLANGUAGE RULE: Respond only in {lang_name}. If any context or sources are in another language, translate them to {lang_name}. Do not code-switch or include other languages."
+        )
         
         # Process the query with the detected language and RAG context
         resp = await self.analyze(prompt, response_language)
@@ -347,7 +415,10 @@ FORMATTING RULES:
             except Exception:
                 text_out = None
 
-        return {"response": text_out or str(resp)}
+        final_text = text_out or str(resp)
+        # Enforce final output language strictly as a safety net
+        final_text = await self._ensure_output_language(final_text, response_language)
+        return {"response": final_text}
 
     async def process_voice_conversation(self, text: str, options: Optional[Dict] = None, language: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -449,6 +520,15 @@ VOICE RESPONSE RULES:
 - End with a gentle question or supportive statement
 - Be warm but concise
 - Avoid complex sentences or multiple topics"""
+        # Append language constraint for voice as well
+        try:
+            base_lang_v = (response_language or 'en').split('-')[0].lower()
+        except Exception:
+            base_lang_v = 'en'
+        lang_name_v = self.get_language_name(base_lang_v)
+        prompt += (
+            f"\n\nLANGUAGE RULE: Respond only in {lang_name_v}. If context or sources include other languages, translate and speak only in {lang_name_v}."
+        )
         
         # Process the query with the detected language and RAG context
         resp = await self.analyze(prompt, response_language)
@@ -469,7 +549,8 @@ VOICE RESPONSE RULES:
 
         # Clean the response for TTS
         cleaned_response = self._clean_for_voice(text_out or str(resp))
-        
+        # Enforce final output language strictly as a safety net (after cleaning)
+        cleaned_response = await self._ensure_output_language(cleaned_response, response_language)
         return {"response": cleaned_response}
 
     def _clean_for_voice(self, text: str) -> str:
