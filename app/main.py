@@ -20,18 +20,24 @@ app = FastAPI(
 
 # ✅ Add CORS Middleware
 origins = [
-    "http://localhost:5173",  # React dev server (Vite)
-    "http://127.0.0.1:5173",  # Sometimes React runs on 127.0.0.1
+    settings.FRONTEND_BASE_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    same_site="none",  # allow cross-site cookie for web.app -> run.app
+    https_only=True,     # secure cookies only over HTTPS
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["*"] to allow all origins (less secure)
+    allow_origins=[o for o in origins if o],
     allow_credentials=True,
-    allow_methods=["*"],  # allow all HTTP methods (POST, GET, etc.)
-    allow_headers=["*"],  # allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Route Registration
@@ -68,6 +74,12 @@ gemini_service = GeminiService(rag_corpus_name=rag_corpus_name)
 def root():
     logger.info("Root endpoint accessed.")
     return {"message": "root end point"}
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Cloud Run"""
+    return {"status": "healthy", "service": "mitra-backend"}
 
 
 @app.middleware("http")

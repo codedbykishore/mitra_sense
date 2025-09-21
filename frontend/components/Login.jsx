@@ -3,8 +3,9 @@ import { LogIn } from "lucide-react"
 
 export default function LoginButton() {
   const handleLogin = () => {
-    // Use proxied endpoint for Google login
-    window.location.href = "/google/login"
+    // Use backend URL directly for Firebase Hosting deployment
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    window.location.href = `${backendUrl}/google/login`;
   }
 
   return (

@@ -85,8 +85,10 @@ class APIService {
   private cacheExpiry: number = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
-    // Use relative URLs for Next.js proxy configuration
-    this.baseURL = '/api/v1';
+    // Use backend URL directly for Firebase Hosting deployment
+    this.baseURL = process.env.NEXT_PUBLIC_BACKEND_URL 
+      ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1`
+      : '/api/v1'; // Fallback for development
   }
 
   private async makeRequest<T>(

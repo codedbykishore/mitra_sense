@@ -16,8 +16,9 @@ export default function LogoutButton() {
       apiService.clearCacheByPattern('conversations_')
       apiService.clearCacheByPattern('messages_')
       
-      // Call FastAPI logout endpoint via Next.js proxy
-      const response = await fetch("/logout", {
+      // Call FastAPI logout endpoint directly
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      const response = await fetch(`${backendUrl}/logout`, {
         method: "GET",
         credentials: "include", // include cookies/session
       })

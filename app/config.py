@@ -13,7 +13,7 @@ load_dotenv()
 class Settings(BaseSettings):
     # Declare fields so Pydantic knows them
     GOOGLE_CREDENTIALS_FILE: str = str(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-    GOOGLE_PROJECT_ID: str | None = None
+    GOOGLE_PROJECT_ID: str | None = str(os.getenv("GOOGLE_PROJECT_ID")) if os.getenv("GOOGLE_PROJECT_ID") else None
     GOOGLE_CLIENT_EMAIL: str | None = None
 
     GOOGLE_CLIENT_ID: str = str(os.getenv("GOOGLE_CLIENT_ID"))
@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     REDIRECT_URI:str = str(os.getenv("REDIRECT_URI"))
     SECRET_KEY:str = str(os.getenv("SECRET_KEY"))
     CORPUS_NAME:str = str(os.getenv("CORPUS_NAME"))
+    FRONTEND_BASE_URL: str = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
 
     SUPPORTED_LANGUAGES: list[str] = [
         "en-US",  # English (US)
