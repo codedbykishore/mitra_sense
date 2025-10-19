@@ -1,4 +1,4 @@
-# 💎 MITRA Sense — Culturally Intelligent Mental Wellness Platform
+# MITRA Sense — Culturally Intelligent Mental Wellness Platform
 
 ## 🧭 Overview
 **MITRA Sense (Mental Intelligence Through Responsive AI)** is a **Google Cloud–powered mental wellness platform** built to provide **culturally contextualized emotional support** for Indian youth.  
