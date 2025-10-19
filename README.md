@@ -1,4 +1,24 @@
-# MITRA Sense — Culturally Intelligent Mental Wellness Platform
+<div align="center">
+
+# **MITRA Sense** 
+### *Culturally Intelligent Mental Wellness Platform for Indian Youth*
+
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Vertex%20AI-blue?style=for-the-badge&logo=google-cloud)](https://cloud.google.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+
+---
+
+<div align="center">
+  <img src="./extras/image.avif" alt="MITRA Sense Banner" width="300" height="200" style="border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);"/>
+</div>
+
+---
+
+**Empowering Indian youth with culturally contextualized emotional support using AI-driven conversations, real-time crisis detection, and multilingual voice interaction.**
+
+</div>
 
 ## 🧭 Overview
 **MITRA Sense (Mental Intelligence Through Responsive AI)** is a **Google Cloud–powered mental wellness platform** built to provide **culturally contextualized emotional support** for Indian youth.  
