@@ -84,14 +84,8 @@ It combines **Gemini 2.5 AI models**, **RAG-based reasoning**, **multilingual vo
 
 MITRA follows a modular, service-driven architecture:
 
-```
-Frontend (Next.js 14 + Tailwind)  ←→  FastAPI Backend  ←→  Google Cloud AI Services
-                                         │
-                                         ├── Gemini (2.5 Flash / Pro)
-                                         ├── Speech & TTS APIs
-                                         ├── Firestore / Storage
-                                         └── Vertex AI RAG Engine
-```
+<img width="1698" height="2389" alt="MITRA Sense System Architecture (1)" src="https://github.com/user-attachments/assets/1819e3a3-8f50-46f7-961b-6991629aa80d" />
+
 
 Each component communicates asynchronously via REST endpoints (`/api/v1/*`) ensuring scalability, low latency, and reliability.
 
