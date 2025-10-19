@@ -234,3 +234,9 @@ cd frontend && npm install && npm run dev
 - Culturally aware design for Indian mental health
 - End-to-end **privacy & encryption**  
 - Designed for **scale, reliability, and empathy**
+
+---
+
+## ⚖️ License
+
+This project is licensed under the **Apache License 2.0** — see the [LICENSE](LICENSE) file for details.
