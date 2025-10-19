@@ -30,17 +30,17 @@ It combines **Gemini 2.5 AI models**, **RAG-based reasoning**, **multilingual vo
 
 ## 🗣️ Voice & Language Intelligence
 
-### **Google Speech-to-Text**
+### **Speech-to-Text**
 - Converts Hindi, English, Tamil, Telugu, and mixed speech into text  
 - Real-time streaming and emotion-tone preservation  
 - Profanity filtering and diarization enabled  
 
-### **Google Text-to-Speech**
+### **Text-to-Speech**
 - Generates culturally authentic, neural voices (93+ Indian dialects)  
 - SSML-based emotional tone control  
 - Used for empathetic and natural-sounding replies  
 
-### **Google Translation**
+### **Translation**
 - Supports all major Indian languages  
 - Context-aware translation preserving cultural nuances  
 - Enables cross-language peer support  
