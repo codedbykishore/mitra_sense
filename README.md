@@ -26,6 +26,19 @@ It combines **Gemini 2.5 AI models**, **RAG-based reasoning**, **multilingual vo
 
 ---
 
+# 🎯 Key Highlights
+
+- 🤖 Multimodal AI with Gemini 2.5 Series  
+- 📚 RAG-enhanced cultural intelligence  
+- 🗣️ Real-time voice-first conversations  
+- 🤝 Anonymous peer support matching  
+- 🚨 Integrated Tele-MANAS escalation  
+- 🌏 Culturally aware design for Indian mental health  
+- 🔒 End-to-end privacy & encryption  
+- ⚡ Designed for scale, reliability, and empathy
+
+---
+
 ## 🧠 Core AI System
 
 ### **Primary AI Engine — Gemini 2.5 Flash**
@@ -241,19 +254,6 @@ cd frontend && npm install && npm run dev
 - Cloud Run auto-scaling (10,000+ concurrent users)  
 - 99.9% uptime target  
 - Off-peak pricing optimization  
-
----
-
-## 🎯 Key Highlights
-
-- Multimodal AI with **Gemini 2.5 Series**
-- **RAG-enhanced cultural intelligence**
-- Real-time **voice-first** conversations  
-- Anonymous **peer support** matching  
-- Integrated **Tele-MANAS** escalation  
-- Culturally aware design for Indian mental health
-- End-to-end **privacy & encryption**  
-- Designed for **scale, reliability, and empathy**
 
 ---
 
